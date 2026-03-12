@@ -7,17 +7,19 @@
   <footer class="footer">
     <p>&copy; 2026 Cyan. All Rights Reserved.</p>
   </footer>
+  <LottieAnimation />
 </template>
 
 <script>
 import NavBar from './components/NavBar.vue'
 import ParticleCanvas from './components/ParticleCanvas.vue'
 import HeroSection from './components/HeroSection.vue'
+import LottieAnimation from './components/LottieAnimation.vue'
 import logoUrl from './assets/logo.png'
 
 export default {
   name: 'App',
-  components: { NavBar, ParticleCanvas, HeroSection },
+  components: { NavBar, ParticleCanvas, HeroSection, LottieAnimation },
   data() {
     return {
       theme: localStorage.getItem('theme') || 'light'
