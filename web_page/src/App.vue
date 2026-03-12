@@ -1,13 +1,19 @@
 <template>
-  <ParticleCanvas />
-  <NavBar :theme="theme" @toggle-theme="toggleTheme" />
-  <main id="home" class="main-content">
-    <HeroSection />
-  </main>
-  <footer class="footer">
-    <p>&copy; 2026 Cyan. All Rights Reserved.</p>
-  </footer>
-  <LottieAnimation />
+  <!-- 加载动画 -->
+  <LoadingAnimation v-if="isLoading" />
+  
+  <!-- 主要内容 -->
+  <div v-else>
+    <ParticleCanvas />
+    <NavBar :theme="theme" @toggle-theme="toggleTheme" />
+    <main id="home" class="main-content">
+      <HeroSection />
+    </main>
+    <footer class="footer">
+      <p>&copy; 2026 Cyan. All Rights Reserved.</p>
+    </footer>
+    <LottieAnimation />
+  </div>
 </template>
 
 <script>
@@ -15,14 +21,16 @@ import NavBar from './components/NavBar.vue'
 import ParticleCanvas from './components/ParticleCanvas.vue'
 import HeroSection from './components/HeroSection.vue'
 import LottieAnimation from './components/LottieAnimation.vue'
+import LoadingAnimation from './components/LoadingAnimation.vue'
 import logoUrl from './assets/logo.png'
 
 export default {
   name: 'App',
-  components: { NavBar, ParticleCanvas, HeroSection, LottieAnimation },
+  components: { NavBar, ParticleCanvas, HeroSection, LottieAnimation, LoadingAnimation },
   data() {
     return {
-      theme: localStorage.getItem('theme') || 'light'
+      theme: localStorage.getItem('theme') || 'light',
+      isLoading: true
     }
   },
   watch: {
@@ -33,6 +41,11 @@ export default {
   mounted() {
     document.body.setAttribute('data-theme', this.theme)
     this.setCircularFavicon(logoUrl)
+    
+    // 模拟页面加载过程
+    setTimeout(() => {
+      this.isLoading = false
+    }, 2000) // 2秒后隐藏加载动画
   },
   methods: {
     toggleTheme() {
