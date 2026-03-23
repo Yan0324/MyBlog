@@ -4,6 +4,8 @@
     --text-primary: #1a1a1a;
     --text-secondary: #666666;
     --accent-cyan: #B8D4E3;
+    --surface-card: rgba(255, 255, 255, 0.72);
+    --surface-soft: rgba(234, 243, 247, 0.72);
     --logo-fill: #F5F5DC;
     --stroke-color: #000000;
     --border-color: #f0f0f0;
@@ -21,6 +23,8 @@
     --text-primary: #FAF9F6;
     --text-secondary: #a0a0a0;
     --accent-cyan: #4a6fa5;
+    --surface-card: rgba(38, 38, 38, 0.76);
+    --surface-soft: rgba(74, 111, 165, 0.18);
     --logo-fill: #2c2c2c;
     --stroke-color: #FAF9F6;
     --border-color: #333;
@@ -34,6 +38,10 @@
 
 html, body {
     height: 100%;
+}
+
+html {
+    scroll-behavior: smooth;
 }
 
 body {

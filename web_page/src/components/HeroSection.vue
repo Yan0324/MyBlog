@@ -27,24 +27,44 @@
     <!-- 引用区 -->
     <div class="quote-section" ref="quoteSection">
       <p class="quote-text" ref="quoteText"></p>
-      <p class="quote-source">&mdash; 「中牟道中」</p>
+      <p class="quote-source">{{ quoteSourceText }}</p>
     </div>
   </div>
 </template>
 
 <script>
-const QUOTE_TEXT = '「如何得与凉风约，不共尘沙一并来！」'
+const FALLBACK_POEM = {
+  content: '「如何得与凉风约，不共尘沙一并来！」',
+  source: '—— 《中牟道中》'
+}
+
+const JINRISHICI_SDK_SRC = 'https://sdk.jinrishici.com/v2/browser/jinrishici.js'
 
 export default {
   name: 'HeroSection',
+  data() {
+    return {
+      quoteTargetText: FALLBACK_POEM.content,
+      quoteSourceText: FALLBACK_POEM.source,
+      hasStartedTyping: false,
+      typingTimer: null,
+      typingRunId: 0
+    }
+  },
   mounted() {
     this.startAnimations()
     this.initTiltEffect()
+    this.loadDailyPoem()
   },
   beforeUnmount() {
     if (this._mouseMoveHandler) {
       document.removeEventListener('mousemove', this._mouseMoveHandler)
     }
+    if (this.typingTimer) {
+      clearTimeout(this.typingTimer)
+    }
+    this.typingRunId += 1
+    this._isUnmounted = true
   },
   methods: {
     animateIn(el, delay) {
@@ -84,26 +104,119 @@ export default {
         this.animateIn(this.$refs.quoteSection, 800)
 
         // 打字机效果
-        setTimeout(() => this.startTypewriter(), 800)
+        setTimeout(() => {
+          this.hasStartedTyping = true
+          this.startTypewriter()
+        }, 800)
       }, 100)
     },
 
     startTypewriter() {
       const el = this.$refs.quoteText
       if (!el) return
+
+      if (this.typingTimer) {
+        clearTimeout(this.typingTimer)
+      }
+
+      this.typingRunId += 1
+      const currentRunId = this.typingRunId
+      const text = this.quoteTargetText
+
       el.textContent = ''
+      el.classList.remove('done')
       let i = 0
+
       const type = () => {
-        if (i < QUOTE_TEXT.length) {
-          el.textContent += QUOTE_TEXT.charAt(i)
+        if (this._isUnmounted || currentRunId !== this.typingRunId) return
+
+        if (i < text.length) {
+          el.textContent += text.charAt(i)
           i++
-          setTimeout(type, 100)
+          this.typingTimer = setTimeout(type, 90)
         } else {
           el.classList.add('done')
           if (this.$refs.quoteSection) this.$refs.quoteSection.classList.add('visible')
         }
       }
       type()
+    },
+
+    normalizeQuoteText(text) {
+      if (!text) return FALLBACK_POEM.content
+
+      const trimmed = text.trim()
+      if (!trimmed) return FALLBACK_POEM.content
+      if (/^[「『“"].*[」』”"]$/.test(trimmed)) return trimmed
+
+      return `「${trimmed}」`
+    },
+
+    formatPoemSource(origin = {}) {
+      const meta = [origin.dynasty, origin.author].filter(Boolean).join('·')
+      const title = origin.title ? `《${origin.title}》` : ''
+
+      if (meta && title) return `—— ${meta}${title}`
+      if (title) return `—— ${title}`
+      if (meta) return `—— ${meta}`
+
+      return FALLBACK_POEM.source
+    },
+
+    applyPoemResult(result) {
+      const content = result?.data?.content
+      if (!content) return
+
+      this.quoteTargetText = this.normalizeQuoteText(content)
+      this.quoteSourceText = this.formatPoemSource(result?.data?.origin)
+
+      if (this.hasStartedTyping) {
+        this.startTypewriter()
+      }
+    },
+
+    loadJinrishiciSdk() {
+      if (window.jinrishici?.load) {
+        return Promise.resolve(window.jinrishici)
+      }
+
+      if (window.__jinrishiciSdkPromise) {
+        return window.__jinrishiciSdkPromise
+      }
+
+      window.__jinrishiciSdkPromise = new Promise((resolve, reject) => {
+        const existingScript = document.querySelector('script[data-jinrishici-sdk="true"]')
+        if (existingScript) {
+          existingScript.addEventListener('load', () => resolve(window.jinrishici), { once: true })
+          existingScript.addEventListener('error', () => reject(new Error('Failed to load Jinrishici SDK.')), { once: true })
+          return
+        }
+
+        const script = document.createElement('script')
+        script.src = JINRISHICI_SDK_SRC
+        script.charset = 'utf-8'
+        script.async = true
+        script.dataset.jinrishiciSdk = 'true'
+        script.onload = () => resolve(window.jinrishici)
+        script.onerror = () => reject(new Error('Failed to load Jinrishici SDK.'))
+        document.head.appendChild(script)
+      })
+
+      return window.__jinrishiciSdkPromise
+    },
+
+    loadDailyPoem() {
+      this.loadJinrishiciSdk()
+        .then((sdk) => {
+          if (this._isUnmounted || !sdk?.load) return
+
+          sdk.load((result) => {
+            this.applyPoemResult(result)
+          })
+        })
+        .catch((error) => {
+          console.warn('Jinrishici SDK load failed:', error)
+        })
     },
 
     initTiltEffect() {
@@ -140,15 +253,25 @@ export default {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding-top: 10vh;
-  padding-bottom: 5vh;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100svh;
+  height: 100vh;
+  height: 100svh;
+  padding: clamp(5.75rem, 8vw, 7rem) 1.5rem clamp(1.75rem, 4vw, 3rem);
   z-index: 10;
-  min-height: 90vh;
+  overflow: hidden;
 }
 
 .content-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
+  gap: clamp(1rem, 2.5vh, 1.75rem);
   max-width: 800px;
+  min-height: 100%;
   padding: 0 2rem;
   width: 100%;
 }
@@ -188,13 +311,12 @@ export default {
   text-transform: uppercase;
   letter-spacing: 0.3em;
   color: var(--text-primary);
-  margin-bottom: 2rem;
+  margin-bottom: 0;
   opacity: 0.9;
 }
 
 /* Avatar Section */
 .avatar-section {
-  margin-bottom: 2.5rem;
   opacity: 0;
   transform: scale(0);
   display: flex;
@@ -227,7 +349,6 @@ export default {
 
 /* Status Section */
 .status-section {
-  margin-bottom: 3rem;
   opacity: 0;
   transform: translateX(-50px);
 }
@@ -248,7 +369,7 @@ export default {
 
 /* Separator */
 .separator {
-  margin: 3rem auto;
+  margin: 0 auto;
   width: 60px;
   height: 2px;
   position: relative;
@@ -270,9 +391,9 @@ export default {
 
 /* Quote Section */
 .quote-section {
-  margin-top: 2rem;
   position: relative;
   opacity: 0;
+  width: min(100%, 44rem);
 }
 
 .quote-text {
@@ -280,7 +401,7 @@ export default {
   font-style: italic;
   font-size: 1.2rem;
   color: var(--text-secondary);
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   line-height: 2;
   min-height: 2.4em;
 }
@@ -305,7 +426,6 @@ export default {
   font-size: 0.9rem;
   color: var(--text-secondary);
   text-align: right;
-  margin-right: 2rem;
   opacity: 0;
   transform: translateY(10px);
   transition: opacity 0.5s ease, transform 0.5s ease;
@@ -314,18 +434,6 @@ export default {
 .quote-section.visible .quote-source {
   opacity: 0.7;
   transform: translateY(0);
-}
-
-/* Footer */
-.footer {
-  padding: 2rem;
-  text-align: center;
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  opacity: 0.5;
-  position: relative;
-  z-index: 10;
 }
 
 /* Mobile Responsive */
@@ -347,7 +455,21 @@ export default {
   }
 
   .main-content {
-    padding-top: 5vh;
+    padding: 5.25rem 1rem 1.5rem;
+  }
+
+  .content-wrapper {
+    gap: 0.85rem;
+    padding: 0 0.5rem;
+  }
+
+  .status-section {
+    margin-top: 0.25rem;
+  }
+
+  .quote-text {
+    font-size: 1rem;
+    line-height: 1.8;
   }
 }
 </style>

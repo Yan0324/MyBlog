@@ -4,11 +4,13 @@
       <ul class="nav-menu">
         <li
           v-for="(item, index) in navItems"
-          :key="index"
+          :key="item.to"
           class="nav-item"
           :ref="el => { if (el) navRefs[index] = el }"
         >
-          <a :href="item.href" class="nav-link">{{ item.label }}</a>
+          <RouterLink :to="item.to" class="nav-link" active-class="is-active">
+            {{ item.label }}
+          </RouterLink>
         </li>
         <li class="nav-item" :ref="el => { if (el) navRefs[navItems.length] = el }">
           <button class="theme-btn" @click="$emit('toggle-theme')">
@@ -30,10 +32,10 @@ export default {
   data() {
     return {
       navItems: [
-        { href: '#home', label: 'Home' },
-        { href: '#about', label: 'About' },
-        { href: '#projects', label: 'Projects' },
-        { href: '#contact', label: 'Contact' }
+        { to: '/', label: 'Home' },
+        { to: '/about', label: 'About' },
+        { to: '/projects', label: 'Projects' },
+        { to: '/contact', label: 'Contact' }
       ],
       navRefs: []
     }
@@ -94,6 +96,10 @@ export default {
   color: var(--text-primary);
 }
 
+.nav-link.is-active {
+  color: var(--text-primary);
+}
+
 .nav-link::after {
   content: '';
   position: absolute;
@@ -106,6 +112,7 @@ export default {
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.nav-link.is-active::after,
 .nav-link:hover::after {
   transform: translateX(-50%) scaleX(1);
 }

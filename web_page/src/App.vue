@@ -3,13 +3,17 @@
   <LoadingAnimation v-if="isLoading" />
   
   <!-- 主要内容 -->
-  <div v-else>
+  <div v-else class="app-shell" :class="{ 'app-shell--home': isHomeRoute }">
     <ParticleCanvas />
     <NavBar :theme="theme" @toggle-theme="toggleTheme" />
-    <main id="home" class="main-content">
-      <HeroSection />
+    <main class="page-frame" :class="{ 'page-frame--home': isHomeRoute }">
+      <router-view v-slot="{ Component, route }">
+        <transition name="page-fade" mode="out-in">
+          <component :is="Component" :key="route.fullPath" />
+        </transition>
+      </router-view>
     </main>
-    <footer class="footer">
+    <footer v-if="!isHomeRoute" class="footer">
       <p>&copy; 2026 Cyan. All Rights Reserved.</p>
     </footer>
     <LottieAnimation />
@@ -19,18 +23,22 @@
 <script>
 import NavBar from './components/NavBar.vue'
 import ParticleCanvas from './components/ParticleCanvas.vue'
-import HeroSection from './components/HeroSection.vue'
 import LottieAnimation from './components/LottieAnimation.vue'
 import LoadingAnimation from './components/LoadingAnimation.vue'
 import logoUrl from './assets/logo.png'
 
 export default {
   name: 'App',
-  components: { NavBar, ParticleCanvas, HeroSection, LottieAnimation, LoadingAnimation },
+  components: { NavBar, ParticleCanvas, LottieAnimation, LoadingAnimation },
   data() {
     return {
       theme: localStorage.getItem('theme') || 'light',
       isLoading: true
+    }
+  },
+  computed: {
+    isHomeRoute() {
+      return this.$route.name === 'home'
     }
   },
   watch: {
@@ -79,3 +87,48 @@ export default {
   }
 }
 </script>
+
+<style>
+.app-shell {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-frame {
+  flex: 1;
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-frame--home {
+  min-height: 100vh;
+  min-height: 100svh;
+  overflow: hidden;
+}
+
+.footer {
+  padding: 2rem;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  opacity: 0.5;
+  position: relative;
+  z-index: 10;
+}
+
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.page-fade-enter-from,
+.page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(14px);
+}
+</style>
