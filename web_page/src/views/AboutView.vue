@@ -19,6 +19,6 @@ export default {
 .about-view {
   position: relative;
   z-index: 10;
-  padding-top: clamp(6rem, 10vw, 7.5rem);
+  padding-top: clamp(1rem, 2vw, 1.5rem);
 }
 </style>

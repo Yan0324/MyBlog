@@ -29,6 +29,29 @@
       <p class="quote-text" ref="quoteText"></p>
       <p class="quote-source">{{ quoteSourceText }}</p>
     </div>
+
+    <div class="social-section" ref="socialSection">
+      <a
+        class="social-link"
+        href="https://github.com/Yan0324"
+        target="_blank"
+        rel="noreferrer"
+        aria-label="GitHub"
+        title="GitHub"
+      >
+        <img src="../assets/github.png" alt="" class="social-icon" />
+      </a>
+      <a
+        class="social-link"
+        href="https://space.bilibili.com/2135587869?spm_id_from=333.1007.0.0"
+        target="_blank"
+        rel="noreferrer"
+        aria-label="哔哩哔哩"
+        title="哔哩哔哩"
+      >
+        <img src="../assets/bilibili.png" alt="" class="social-icon" />
+      </a>
+    </div>
   </div>
 </template>
 
@@ -39,6 +62,9 @@ const FALLBACK_POEM = {
 }
 
 const JINRISHICI_SDK_SRC = 'https://sdk.jinrishici.com/v2/browser/jinrishici.js'
+const REVEAL_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'
+const REVEAL_DURATION = 760
+const TYPE_INTERVAL = 58
 
 export default {
   name: 'HeroSection',
@@ -48,67 +74,126 @@ export default {
       quoteSourceText: FALLBACK_POEM.source,
       hasStartedTyping: false,
       typingTimer: null,
-      typingRunId: 0
+      typingRunId: 0,
+      pendingTimers: []
     }
   },
   mounted() {
+    this._isUnmounted = false
     this.startAnimations()
     this.initTiltEffect()
     this.loadDailyPoem()
   },
   beforeUnmount() {
-    if (this._mouseMoveHandler) {
-      document.removeEventListener('mousemove', this._mouseMoveHandler)
-    }
+    this.clearPendingTimers()
     if (this.typingTimer) {
       clearTimeout(this.typingTimer)
+    }
+    if (this._avatarPointerEnterHandler && this.$refs.avatarContainer) {
+      this.$refs.avatarContainer.removeEventListener('pointerenter', this._avatarPointerEnterHandler)
+    }
+    if (this._avatarPointerMoveHandler && this.$refs.avatarContainer) {
+      this.$refs.avatarContainer.removeEventListener('pointermove', this._avatarPointerMoveHandler)
+    }
+    if (this._avatarPointerLeaveHandler && this.$refs.avatarContainer) {
+      this.$refs.avatarContainer.removeEventListener('pointerleave', this._avatarPointerLeaveHandler)
     }
     this.typingRunId += 1
     this._isUnmounted = true
   },
   methods: {
+    prefersReducedMotion() {
+      return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    },
+
+    queueTimer(callback, delay) {
+      const timer = window.setTimeout(() => {
+        this.pendingTimers = this.pendingTimers.filter((id) => id !== timer)
+        if (!this._isUnmounted) {
+          callback()
+        }
+      }, delay)
+
+      this.pendingTimers.push(timer)
+      return timer
+    },
+
+    clearPendingTimers() {
+      this.pendingTimers.forEach((timer) => clearTimeout(timer))
+      this.pendingTimers = []
+    },
+
     animateIn(el, delay) {
       if (!el) return
-      setTimeout(() => {
-        el.style.transition = 'all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+      this.queueTimer(() => {
+        el.style.transition = `opacity ${REVEAL_DURATION}ms ${REVEAL_EASE}, transform ${REVEAL_DURATION}ms ${REVEAL_EASE}`
         el.style.opacity = '1'
-        el.style.transform = 'translate(0, 0) scale(1)'
+        el.style.transform = 'translate3d(0, 0, 0) scale(1)'
         el.classList.add('visible')
       }, delay)
     },
 
+    revealImmediately() {
+      const sections = [
+        this.$refs.logoSection,
+        this.$refs.avatarSection,
+        this.$refs.statusSection,
+        this.$refs.quoteSection,
+        this.$refs.socialSection
+      ]
+
+      sections.forEach((el) => {
+        if (!el) return
+        el.style.opacity = '1'
+        el.style.transform = 'translate3d(0, 0, 0) scale(1)'
+        el.classList.add('visible')
+      })
+
+      if (this.$refs.separator) {
+        this.$refs.separator.classList.add('visible')
+      }
+
+      if (this.$refs.quoteText) {
+        this.$refs.quoteText.textContent = this.quoteTargetText
+        this.$refs.quoteText.classList.add('done')
+      }
+
+      this.hasStartedTyping = true
+    },
+
     startAnimations() {
-      setTimeout(() => {
-        // Logo: 从上滑入
-        this.animateIn(this.$refs.logoSection, 100)
+      if (this.prefersReducedMotion()) {
+        this.revealImmediately()
+        return
+      }
 
-        // 头像: 弹性弹出
-        setTimeout(() => {
-          const avatar = this.$refs.avatarSection
-          if (avatar) {
-            avatar.style.transition = 'opacity 0.5s ease, transform 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55)'
-            avatar.style.opacity = '1'
-            avatar.style.transform = 'scale(1)'
-          }
-        }, 300)
+      const introStart = 100
 
-        // 状态: 从左滑入
-        this.animateIn(this.$refs.statusSection, 500)
+      this.animateIn(this.$refs.logoSection, introStart)
 
-        // 分隔线
-        setTimeout(() => {
-          if (this.$refs.separator) this.$refs.separator.classList.add('visible')
-        }, 650)
+      this.queueTimer(() => {
+        const avatar = this.$refs.avatarSection
+        if (!avatar) return
 
-        // 引用区淡入
-        this.animateIn(this.$refs.quoteSection, 800)
+        avatar.style.transition = `opacity 620ms ${REVEAL_EASE}, transform 700ms cubic-bezier(0.34, 1.56, 0.64, 1)`
+        avatar.style.opacity = '1'
+        avatar.style.transform = 'translate3d(0, 0, 0) scale(1)'
+      }, introStart + 150)
 
-        // 打字机效果
-        setTimeout(() => {
-          this.hasStartedTyping = true
-          this.startTypewriter()
-        }, 800)
-      }, 100)
+      this.animateIn(this.$refs.statusSection, introStart + 340)
+
+      this.queueTimer(() => {
+        if (this.$refs.separator) this.$refs.separator.classList.add('visible')
+      }, introStart + 500)
+
+      this.animateIn(this.$refs.quoteSection, introStart + 580)
+
+      this.animateIn(this.$refs.socialSection, introStart + 860)
+
+      this.queueTimer(() => {
+        this.hasStartedTyping = true
+        this.startTypewriter()
+      }, introStart + 690)
     },
 
     startTypewriter() {
@@ -133,7 +218,7 @@ export default {
         if (i < text.length) {
           el.textContent += text.charAt(i)
           i++
-          this.typingTimer = setTimeout(type, 90)
+          this.typingTimer = window.setTimeout(type, TYPE_INTERVAL)
         } else {
           el.classList.add('done')
           if (this.$refs.quoteSection) this.$refs.quoteSection.classList.add('visible')
@@ -220,26 +305,31 @@ export default {
     },
 
     initTiltEffect() {
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+      if (this.prefersReducedMotion()) return
       const container = this.$refs.avatarContainer
       if (!container) return
 
-      this._mouseMoveHandler = (e) => {
-        const rotateX = (e.clientY / window.innerHeight) * -10
-        const rotateY = (e.clientX / window.innerWidth) * 10
-        container.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1)`
+      this._avatarPointerEnterHandler = () => {
+        container.style.transition = 'transform 0.18s ease-out, box-shadow 0.28s ease, border-color 0.28s ease'
       }
 
-      container.addEventListener('mouseenter', () => {
-        container.style.transition = 'transform 0.1s ease'
-      })
+      this._avatarPointerMoveHandler = (event) => {
+        const rect = container.getBoundingClientRect()
+        const offsetX = event.clientX - rect.left
+        const offsetY = event.clientY - rect.top
+        const rotateY = ((offsetX / rect.width) - 0.5) * 12
+        const rotateX = (0.5 - (offsetY / rect.height)) * 12
+        container.style.transform = `perspective(960px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale(1.03)`
+      }
 
-      container.addEventListener('mouseleave', () => {
-        container.style.transition = 'transform 0.5s ease'
+      this._avatarPointerLeaveHandler = () => {
+        container.style.transition = 'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.28s ease, border-color 0.28s ease'
         container.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) scale(1)'
-      })
+      }
 
-      document.addEventListener('mousemove', this._mouseMoveHandler)
+      container.addEventListener('pointerenter', this._avatarPointerEnterHandler)
+      container.addEventListener('pointermove', this._avatarPointerMoveHandler)
+      container.addEventListener('pointerleave', this._avatarPointerLeaveHandler)
     }
   }
 }
@@ -254,11 +344,9 @@ export default {
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 100vh;
-  min-height: 100svh;
-  height: 100vh;
-  height: 100svh;
-  padding: clamp(5.75rem, 8vw, 7rem) 1.5rem clamp(1.75rem, 4vw, 3rem);
+  min-height: calc(100vh - var(--nav-offset));
+  min-height: calc(100svh - var(--nav-offset));
+  padding: clamp(1.25rem, 3vw, 2rem) 1.5rem clamp(1.75rem, 4vw, 3rem);
   z-index: 10;
   overflow: hidden;
 }
@@ -279,7 +367,7 @@ export default {
 /* Logo Section */
 .logo-section {
   opacity: 0;
-  transform: translateY(-30px);
+  transform: translate3d(0, -28px, 0);
 }
 
 .brand-logo {
@@ -296,13 +384,8 @@ export default {
 }
 
 .brand-logo:hover {
-  text-shadow: 7px 7px 0px var(--accent-cyan);
-  animation: wobble 1s ease-in-out infinite;
-}
-
-@keyframes wobble {
-  0%, 100% { transform: rotate(-2deg); }
-  50%       { transform: rotate(2deg); }
+  text-shadow: 6px 6px 0px var(--accent-cyan);
+  transform: translateY(-4px) rotate(-1deg);
 }
 
 .brand-subtitle {
@@ -318,7 +401,7 @@ export default {
 /* Avatar Section */
 .avatar-section {
   opacity: 0;
-  transform: scale(0);
+  transform: translate3d(0, 18px, 0) scale(0.9);
   display: flex;
   justify-content: center;
 }
@@ -333,11 +416,12 @@ export default {
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   cursor: pointer;
   background-color: #fff;
+  will-change: transform;
 }
 
 .avatar-container:hover {
   border-color: var(--accent-cyan);
-  box-shadow: 0 10px 30px rgba(184, 212, 227, 0.4);
+  box-shadow: 0 16px 36px rgba(184, 212, 227, 0.35);
 }
 
 .avatar-img {
@@ -347,10 +431,14 @@ export default {
   transition: transform 0.5s ease;
 }
 
+.avatar-container:hover .avatar-img {
+  transform: scale(1.05);
+}
+
 /* Status Section */
 .status-section {
   opacity: 0;
-  transform: translateX(-50px);
+  transform: translate3d(0, 24px, 0);
 }
 
 .keyword {
@@ -375,6 +463,8 @@ export default {
   position: relative;
   display: flex;
   justify-content: center;
+  opacity: 0.4;
+  transition: opacity 0.5s ease;
 }
 
 .line-draw {
@@ -389,11 +479,16 @@ export default {
   width: 100%;
 }
 
+.separator.visible {
+  opacity: 1;
+}
+
 /* Quote Section */
 .quote-section {
   position: relative;
   opacity: 0;
   width: min(100%, 44rem);
+  transform: translate3d(0, 20px, 0);
 }
 
 .quote-text {
@@ -436,6 +531,43 @@ export default {
   transform: translateY(0);
 }
 
+.social-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  margin-top: clamp(1.2rem, 4vh, 2.2rem);
+  opacity: 0;
+  transform: translate3d(0, 18px, 0);
+}
+
+.social-link {
+  width: 2.8rem;
+  height: 2.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(102, 102, 102, 0.15);
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
+  transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease, background-color 0.28s ease;
+}
+
+.social-link:hover {
+  transform: translateY(-4px);
+  border-color: rgba(184, 212, 227, 0.8);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.1);
+}
+
+.social-icon {
+  width: 1.3rem;
+  height: 1.3rem;
+  display: block;
+  object-fit: contain;
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
   .brand-logo {
@@ -455,7 +587,7 @@ export default {
   }
 
   .main-content {
-    padding: 5.25rem 1rem 1.5rem;
+    padding: 1rem 1rem 1.5rem;
   }
 
   .content-wrapper {
@@ -470,6 +602,20 @@ export default {
   .quote-text {
     font-size: 1rem;
     line-height: 1.8;
+  }
+
+  .social-section {
+    margin-top: 1.1rem;
+  }
+
+  .social-link {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .social-icon {
+    width: 1.15rem;
+    height: 1.15rem;
   }
 }
 </style>

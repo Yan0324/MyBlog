@@ -1,12 +1,18 @@
 <template>
-  <div class="lottie-container">
+  <button
+    type="button"
+    class="lottie-container"
+    @click="scrollToTop"
+    aria-label="回到顶部"
+    title="回到顶部"
+  >
     <DotLottieVue
       style="height: 200px; width: 200px"
       autoplay
       loop
       :src="animationUrl"
     />
-  </div>
+  </button>
 </template>
 
 <script>
@@ -21,6 +27,14 @@ export default {
     return {
       animationUrl: '/Animation.lottie'
     }
+  },
+  methods: {
+    scrollToTop() {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      })
+    }
   }
 }
 </script>
@@ -31,6 +45,14 @@ export default {
   bottom: 20px;
   right: 20px;
   z-index: 1000;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.lottie-container :deep(canvas),
+.lottie-container :deep(svg) {
   pointer-events: none;
 }
 </style>

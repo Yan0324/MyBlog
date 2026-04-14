@@ -37,19 +37,34 @@ export default {
         { to: '/projects', label: 'Projects' },
         { to: '/contact', label: 'Contact' }
       ],
-      navRefs: []
+      navRefs: [],
+      revealTimers: []
     }
   },
   mounted() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      this.navRefs.forEach((item) => {
+        if (!item) return
+        item.style.opacity = '1'
+        item.style.transform = 'translateY(0)'
+      })
+      return
+    }
+
     this.navRefs.forEach((item, index) => {
-      if (item) {
-        setTimeout(() => {
-          item.style.transition = 'all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
-          item.style.opacity = '1'
-          item.style.transform = 'translateY(0)'
-        }, 1000 + index * 100)
-      }
+      if (!item) return
+
+      const timer = window.setTimeout(() => {
+        item.style.transition = 'opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1), transform 0.7s cubic-bezier(0.22, 1, 0.36, 1)'
+        item.style.opacity = '1'
+        item.style.transform = 'translateY(0)'
+      }, 320 + index * 90)
+
+      this.revealTimers.push(timer)
     })
+  },
+  beforeUnmount() {
+    this.revealTimers.forEach((timer) => clearTimeout(timer))
   }
 }
 </script>
@@ -57,15 +72,17 @@ export default {
 <style>
 /* Navigation */
 .navbar {
-  position: absolute;
-  top: 0;
+  position: relative;
   width: 100%;
-  padding: 2rem;
-  z-index: 100;
+  height: 100%;
+  padding: 1rem 1.5rem;
+  z-index: 1;
 }
 
 .nav-container {
+  height: 100%;
   display: flex;
+  align-items: center;
   justify-content: flex-end;
 }
 
@@ -78,7 +95,7 @@ export default {
 
 .nav-item {
   opacity: 0;
-  transform: translateY(20px);
+  transform: translateY(-16px);
 }
 
 .nav-link {
@@ -124,20 +141,21 @@ export default {
   color: var(--text-secondary);
   cursor: pointer;
   font-size: 1rem;
-  transition: color 0.3s ease;
+  transition: color 0.3s ease, transform 0.3s ease;
 }
 
 .theme-btn:hover {
   color: var(--text-primary);
+  transform: translateY(-2px);
 }
 
 @media (max-width: 768px) {
   .navbar {
-    padding: 1.5rem;
+    padding: 0.85rem 1rem;
   }
 
   .nav-menu {
-    gap: 1rem;
+    gap: 0.85rem;
   }
 
   .nav-link {

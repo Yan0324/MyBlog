@@ -59,7 +59,7 @@ export default {
   z-index: 10;
   width: min(1160px, calc(100% - 3rem));
   margin: 0 auto 4rem;
-  padding-top: clamp(6rem, 10vw, 7.5rem);
+  padding-top: clamp(1rem, 2vw, 1.5rem);
 }
 
 .subpage-shell {
