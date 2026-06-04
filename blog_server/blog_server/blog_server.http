@@ -1,0 +1,34 @@
+@blog_server_HostAddress = http://localhost:5115
+
+### 前台：获取已发布文章
+GET {{blog_server_HostAddress}}/api/articles
+
+### 前台：按分类筛选
+GET {{blog_server_HostAddress}}/api/articles?category=tech
+
+### 后台：登录
+POST {{blog_server_HostAddress}}/api/admin/login
+Content-Type: application/json
+
+{
+  "password": "blog-admin"
+}
+
+### 后台：获取全部文章（需替换 token）
+GET {{blog_server_HostAddress}}/api/admin/articles
+Authorization: Bearer dev-admin-token-change-me
+
+### 后台：新建文章
+POST {{blog_server_HostAddress}}/api/admin/articles
+Content-Type: application/json
+Authorization: Bearer dev-admin-token-change-me
+
+{
+  "category": "notes",
+  "kicker": "2026 · 06",
+  "title": "测试文章",
+  "copy": "摘要",
+  "content": "正文",
+  "tags": ["测试"],
+  "published": true
+}

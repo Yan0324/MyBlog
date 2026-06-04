@@ -33,9 +33,7 @@ export default {
     return {
       navItems: [
         { to: '/', label: 'Home' },
-        { to: '/about', label: 'About' },
-        { to: '/projects', label: 'Projects' },
-        { to: '/contact', label: 'Contact' }
+        { to: '/essay', label: 'Essay' }
       ],
       navRefs: [],
       revealTimers: []
