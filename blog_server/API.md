@@ -58,9 +58,49 @@
 
 与 `Article` 相同，但**不含** `id` 字段（更新时 `id` 放在 URL 路径中）。
 
+### SiteStatus（首页状态）
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `keyword` | string | 是 | 年度关键词，如 `"Be Rich"` |
+| `statusLine` | string | 否 | 状态描述行，如 `"2026 · 平静"` |
+
+### SiteStatusPayload（更新首页状态请求体）
+
+与 `SiteStatus` 字段相同。
+
 ---
 
 ## 前台接口
+
+### 获取首页状态
+
+```
+GET /api/status
+```
+
+**认证：** 无
+
+**响应示例（200）：**
+
+```json
+{
+  "status": {
+    "keyword": "Be Rich",
+    "statusLine": "2026 · 平静"
+  }
+}
+```
+
+**curl 示例：**
+
+```bash
+curl http://localhost:5115/api/status
+```
+
+**前端调用：** `fetchSiteStatus()` — `web_page/src/api/client.js`
+
+---
 
 ### 获取已发布文章列表
 
@@ -166,6 +206,63 @@ curl -X POST http://localhost:5115/api/admin/login \
 ```
 
 **前端调用：** `adminLogin(password)` — `web_page/src/api/client.js`
+
+---
+
+### 获取首页状态（后台）
+
+```
+GET /api/admin/status
+```
+
+**认证：** Bearer Token
+
+**响应示例（200）：**
+
+```json
+{
+  "status": {
+    "keyword": "Be Rich",
+    "statusLine": "2026 · 平静"
+  }
+}
+```
+
+**前端调用：** `fetchAdminStatus(token)`
+
+---
+
+### 更新首页状态
+
+```
+PUT /api/admin/status
+```
+
+**认证：** Bearer Token
+
+**请求体：**
+
+```json
+{
+  "keyword": "Be Rich",
+  "statusLine": "2026 · 平静"
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `keyword` | string | 是 | 年度关键词 |
+| `statusLine` | string | 否 | 状态描述行 |
+
+**错误响应（400）：**
+
+```json
+{
+  "message": "年度关键词不能为空"
+}
+```
+
+**前端调用：** `updateAdminStatus(token, payload)`
 
 ---
 

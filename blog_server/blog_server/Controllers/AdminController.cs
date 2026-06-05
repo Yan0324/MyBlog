@@ -1,34 +1,66 @@
+using blog_server.Common;
+using blog_server.Entity.Do;
+using blog_server.Entity.Vo;
 using blog_server.Filters;
-using blog_server.Models;
-using blog_server.Services;
+using blog_server.Services.IService;
 using Microsoft.AspNetCore.Mvc;
 
 namespace blog_server.Controllers;
 
 /// <summary>
-/// 后台文章管理接口。
+/// 后台管理接口。
 /// </summary>
 [ApiController]
 [Route("api/admin")]
-public class AdminController(ArticleStore store, AdminAuthService authService) : ControllerBase
+public class AdminController(
+    IArticleStore store,
+    ISiteStatusStore statusStore,
+    IAdminAuthService authService) : ControllerBase
 {
     /// <summary>
     /// 后台登录，成功返回 Bearer Token。
     /// </summary>
     [HttpPost("login")]
-    public IActionResult Login([FromBody] LoginRequest request)
+    public ActionResult<Result<LoginVo>> Login([FromBody] LoginDo loginDo)
     {
-        if (string.IsNullOrWhiteSpace(request.Password))
+        if (string.IsNullOrWhiteSpace(loginDo.Password))
         {
-            return Unauthorized(new { message = "密码错误" });
+            return Unauthorized(Result<LoginVo>.Fail(401, "密码错误"));
         }
 
-        if (!authService.ValidatePassword(request.Password))
+        if (!authService.ValidatePassword(loginDo.Password))
         {
-            return Unauthorized(new { message = "密码错误" });
+            return Unauthorized(Result<LoginVo>.Fail(401, "密码错误"));
         }
 
-        return Ok(new { token = authService.GetToken() });
+        return Ok(Result<LoginVo>.Ok(new LoginVo { Token = authService.GetToken() }));
+    }
+
+    /// <summary>
+    /// 获取首页状态配置。
+    /// </summary>
+    [HttpGet("status")]
+    [AdminAuthorize]
+    public ActionResult<Result<SiteStatusItemVo>> GetStatus()
+    {
+        var status = statusStore.Get();
+        return Ok(Result<SiteStatusItemVo>.Ok(new SiteStatusItemVo { Status = status }));
+    }
+
+    /// <summary>
+    /// 更新首页状态配置。
+    /// </summary>
+    [HttpPut("status")]
+    [AdminAuthorize]
+    public ActionResult<Result<SiteStatusItemVo>> UpdateStatus([FromBody] SiteStatusDo statusDo)
+    {
+        if (string.IsNullOrWhiteSpace(statusDo.Keyword))
+        {
+            return BadRequest(Result<SiteStatusItemVo>.Fail(400, "年度关键词不能为空"));
+        }
+
+        var status = statusStore.Update(statusDo);
+        return Ok(Result<SiteStatusItemVo>.Ok(new SiteStatusItemVo { Status = status }));
     }
 
     /// <summary>
@@ -36,10 +68,10 @@ public class AdminController(ArticleStore store, AdminAuthService authService) :
     /// </summary>
     [HttpGet("articles")]
     [AdminAuthorize]
-    public ActionResult<object> GetAll()
+    public ActionResult<Result<ArticleListVo>> GetAll()
     {
         var articles = store.GetAll();
-        return Ok(new { articles });
+        return Ok(Result<ArticleListVo>.Ok(new ArticleListVo { Articles = [.. articles] }));
     }
 
     /// <summary>
@@ -47,15 +79,15 @@ public class AdminController(ArticleStore store, AdminAuthService authService) :
     /// </summary>
     [HttpPost("articles")]
     [AdminAuthorize]
-    public ActionResult<object> Create([FromBody] ArticlePayload payload)
+    public ActionResult<Result<ArticleItemVo>> Create([FromBody] ArticleDo articleDo)
     {
-        if (string.IsNullOrWhiteSpace(payload.Title))
+        if (string.IsNullOrWhiteSpace(articleDo.Title))
         {
-            return BadRequest(new { message = "标题不能为空" });
+            return BadRequest(Result<ArticleItemVo>.Fail(400, "标题不能为空"));
         }
 
-        var article = store.Create(payload);
-        return Ok(new { article });
+        var article = store.Create(articleDo);
+        return Ok(Result<ArticleItemVo>.Ok(new ArticleItemVo { Article = article }));
     }
 
     /// <summary>
@@ -63,20 +95,20 @@ public class AdminController(ArticleStore store, AdminAuthService authService) :
     /// </summary>
     [HttpPut("articles/{id}")]
     [AdminAuthorize]
-    public ActionResult<object> Update(string id, [FromBody] ArticlePayload payload)
+    public ActionResult<Result<ArticleItemVo>> Update(string id, [FromBody] ArticleDo articleDo)
     {
-        if (string.IsNullOrWhiteSpace(payload.Title))
+        if (string.IsNullOrWhiteSpace(articleDo.Title))
         {
-            return BadRequest(new { message = "标题不能为空" });
+            return BadRequest(Result<ArticleItemVo>.Fail(400, "标题不能为空"));
         }
 
-        var article = store.Update(id, payload);
+        var article = store.Update(id, articleDo);
         if (article is null)
         {
-            return NotFound(new { message = "文章不存在" });
+            return NotFound(Result<ArticleItemVo>.Fail(404, "文章不存在"));
         }
 
-        return Ok(new { article });
+        return Ok(Result<ArticleItemVo>.Ok(new ArticleItemVo { Article = article }));
     }
 
     /// <summary>
@@ -84,13 +116,13 @@ public class AdminController(ArticleStore store, AdminAuthService authService) :
     /// </summary>
     [HttpDelete("articles/{id}")]
     [AdminAuthorize]
-    public IActionResult Delete(string id)
+    public ActionResult<Result> Delete(string id)
     {
         if (!store.Delete(id))
         {
-            return NotFound(new { message = "文章不存在" });
+            return NotFound(Result.Fail(404, "文章不存在"));
         }
 
-        return Ok(new { message = "已删除" });
+        return Ok(Result.Ok(message: "已删除"));
     }
 }

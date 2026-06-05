@@ -15,8 +15,8 @@
 
     <!-- 年度关键词与状态 -->
     <div class="status-section" ref="statusSection">
-      <div class="keyword">Be Rich</div>
-      <div class="status-line">2026 &middot; 平静</div>
+      <div class="keyword">{{ keyword }}</div>
+      <div class="status-line">{{ statusLine }}</div>
     </div>
 
     <!-- 分隔线 -->
@@ -56,9 +56,17 @@
 </template>
 
 <script>
+import { fetchSiteStatus } from '../api/client'
+
 const FALLBACK_POEM = {
   content: '「如何得与凉风约，不共尘沙一并来！」',
   source: '—— 《中牟道中》'
+}
+
+// 接口失败时的默认状态，与后端预置值一致
+const FALLBACK_STATUS = {
+  keyword: 'Be Rich',
+  statusLine: '2026 · 平静'
 }
 
 const JINRISHICI_SDK_SRC = 'https://sdk.jinrishici.com/v2/browser/jinrishici.js'
@@ -70,6 +78,8 @@ export default {
   name: 'HeroSection',
   data() {
     return {
+      keyword: FALLBACK_STATUS.keyword,
+      statusLine: FALLBACK_STATUS.statusLine,
       quoteTargetText: FALLBACK_POEM.content,
       quoteSourceText: FALLBACK_POEM.source,
       hasStartedTyping: false,
@@ -80,6 +90,7 @@ export default {
   },
   mounted() {
     this._isUnmounted = false
+    this.loadSiteStatus()
     this.startAnimations()
     this.initTiltEffect()
     this.loadDailyPoem()
@@ -102,8 +113,26 @@ export default {
     this._isUnmounted = true
   },
   methods: {
+    fetchSiteStatus,
+
     prefersReducedMotion() {
       return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    },
+
+    async loadSiteStatus() {
+      try {
+        const data = await this.fetchSiteStatus()
+        const status = data.status || {}
+        if (status.keyword) {
+          this.keyword = status.keyword
+        }
+        if (status.statusLine) {
+          this.statusLine = status.statusLine
+        }
+      } catch (err) {
+        // 静默降级，使用 FALLBACK_STATUS
+        console.warn('加载首页状态失败，使用默认值', err)
+      }
     },
 
     queueTimer(callback, delay) {

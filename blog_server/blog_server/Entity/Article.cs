@@ -1,7 +1,7 @@
-namespace blog_server.Models;
+namespace blog_server.Entity;
 
 /// <summary>
-/// 文章实体，字段与前端 Essay 页、后台表单一致。
+/// 文章数据库实体，对应 articles 表。
 /// </summary>
 public class Article
 {

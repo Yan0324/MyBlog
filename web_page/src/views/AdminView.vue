@@ -4,7 +4,7 @@
       <!-- 未登录：显示登录表单 -->
       <div v-if="!token" class="admin-login">
         <h1 class="admin-title">文章后台</h1>
-        <p class="admin-lead">登录后可发布、编辑或删除 Essay 文章。</p>
+        <p class="admin-lead">登录后可管理首页状态，以及发布、编辑或删除 Essay 文章。</p>
         <form class="login-form" @submit.prevent="handleLogin">
           <label class="field">
             <span>管理密码</span>
@@ -22,7 +22,7 @@
         <header class="admin-toolbar">
           <div>
             <h1 class="admin-title">文章后台</h1>
-            <p class="admin-lead">内容会保存到服务器，前台 Essay 页自动读取。</p>
+            <p class="admin-lead">内容会保存到服务器，前台首页与 Essay 页自动读取。</p>
           </div>
           <div class="toolbar-actions">
             <button type="button" class="ghost-btn" @click="startCreate">新建文章</button>
@@ -31,9 +31,30 @@
         </header>
 
         <p v-if="listError" class="form-error">{{ listError }}</p>
-        <p v-else-if="loadingList" class="admin-hint">加载文章列表…</p>
+        <p v-else-if="loadingList" class="admin-hint">加载中…</p>
 
-        <div v-else class="admin-layout">
+        <!-- 首页状态管理 -->
+        <section v-if="!loadingList" class="status-panel">
+          <h2 class="section-heading">首页状态</h2>
+          <p class="section-lead">管理首页头像下方的年度关键词与状态行，保存后前台立即生效。</p>
+          <form class="status-form" @submit.prevent="handleSaveStatus">
+            <label class="field">
+              <span>年度关键词</span>
+              <input v-model.trim="statusForm.keyword" type="text" placeholder="例如 Be Rich" required />
+            </label>
+            <label class="field">
+              <span>状态行</span>
+              <input v-model.trim="statusForm.statusLine" type="text" placeholder="例如 2026 · 平静" />
+            </label>
+            <p v-if="statusError" class="form-error">{{ statusError }}</p>
+            <p v-else-if="statusSavedHint" class="status-saved-hint">{{ statusSavedHint }}</p>
+            <button type="submit" class="primary-btn" :disabled="savingStatus">
+              {{ savingStatus ? '保存中…' : '保存状态' }}
+            </button>
+          </form>
+        </section>
+
+        <div v-if="!loadingList" class="admin-layout">
           <!-- 文章列表 -->
           <aside class="admin-list">
             <button
@@ -134,6 +155,8 @@
 import {
   adminLogin,
   fetchAdminArticles,
+  fetchAdminStatus,
+  updateAdminStatus,
   createArticle,
   updateArticle,
   deleteArticle
@@ -158,6 +181,13 @@ export default {
       editingId: null,
       saving: false,
       saveError: '',
+      statusForm: {
+        keyword: '',
+        statusLine: ''
+      },
+      savingStatus: false,
+      statusError: '',
+      statusSavedHint: '',
       tagsInput: '',
       publishCategories: [
         { id: 'tech', label: '技术' },
@@ -219,8 +249,16 @@ export default {
       this.loadingList = true
       this.listError = ''
       try {
-        const data = await fetchAdminArticles(this.token)
-        this.articles = data.articles || []
+        const [articlesData, statusData] = await Promise.all([
+          fetchAdminArticles(this.token),
+          fetchAdminStatus(this.token)
+        ])
+        this.articles = articlesData.articles || []
+        const status = statusData.status || {}
+        this.statusForm = {
+          keyword: status.keyword || '',
+          statusLine: status.statusLine || ''
+        }
       } catch (err) {
         this.listError = err.message
         if (err.message.includes('未授权')) {
@@ -228,6 +266,27 @@ export default {
         }
       } finally {
         this.loadingList = false
+      }
+    },
+    async handleSaveStatus() {
+      this.savingStatus = true
+      this.statusError = ''
+      this.statusSavedHint = ''
+      try {
+        const data = await updateAdminStatus(this.token, {
+          keyword: this.statusForm.keyword,
+          statusLine: this.statusForm.statusLine
+        })
+        const status = data.status || {}
+        this.statusForm = {
+          keyword: status.keyword || '',
+          statusLine: status.statusLine || ''
+        }
+        this.statusSavedHint = '状态已保存'
+      } catch (err) {
+        this.statusError = err.message
+      } finally {
+        this.savingStatus = false
       }
     },
     startCreate() {
@@ -372,6 +431,38 @@ export default {
   grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
   gap: 1.25rem;
   margin-top: 1.5rem;
+}
+
+.status-panel {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  border-radius: 20px;
+  border: 1px solid rgba(26, 26, 26, 0.08);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.section-heading {
+  font-size: 1.2rem;
+}
+
+.section-lead {
+  margin-top: 0.35rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.status-form {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  align-items: end;
+}
+
+.status-saved-hint {
+  color: #2d6a4f;
+  font-size: 0.88rem;
+  grid-column: 1 / -1;
 }
 
 .admin-list {

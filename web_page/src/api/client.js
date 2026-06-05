@@ -12,19 +12,23 @@ async function request(path, options = {}) {
     headers
   })
 
-  let data = null
+  let payload = null
   try {
-    data = await response.json()
+    payload = await response.json()
   } catch (e) {
-    data = null
+    payload = null
   }
 
-  if (!response.ok) {
-    const message = (data && data.message) || '请求失败'
+  // 统一 Result 结构：{ code, message, data }
+  const message = (payload && payload.message) || '请求失败'
+  const code = payload && typeof payload.code === 'number' ? payload.code : null
+
+  if (!response.ok || (code !== null && code !== 200)) {
     throw new Error(message)
   }
 
-  return data
+  // 返回 data 字段，保持业务层用法不变（data.articles / data.status 等）
+  return payload && Object.prototype.hasOwnProperty.call(payload, 'data') ? payload.data : payload
 }
 
 // 前台获取已发布文章
@@ -38,11 +42,32 @@ export function fetchArticleById(id) {
   return request(`/articles/${encodeURIComponent(id)}`)
 }
 
+// 前台获取首页状态
+export function fetchSiteStatus() {
+  return request('/status')
+}
+
 // 后台登录
 export function adminLogin(password) {
   return request('/admin/login', {
     method: 'POST',
     body: JSON.stringify({ password })
+  })
+}
+
+// 后台获取首页状态
+export function fetchAdminStatus(token) {
+  return request('/admin/status', {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+}
+
+// 后台更新首页状态
+export function updateAdminStatus(token, payload) {
+  return request('/admin/status', {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
   })
 }
 

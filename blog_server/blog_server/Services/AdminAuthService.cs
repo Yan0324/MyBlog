@@ -1,9 +1,11 @@
+using blog_server.Services.IService;
+
 namespace blog_server.Services;
 
 /// <summary>
-/// 后台简单鉴权：固定密码 + 固定 Token，后续可改为 JWT 或数据库用户。
+/// 后台鉴权实现：固定密码 + 固定 Token，后续可改为 JWT 或数据库用户。
 /// </summary>
-public class AdminAuthService
+public class AdminAuthService : IAdminAuthService
 {
     private readonly string _password;
     private readonly string _token;

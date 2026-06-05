@@ -1,9 +1,9 @@
-namespace blog_server.Models;
+namespace blog_server.Entity.Do;
 
 /// <summary>
-/// 后台新建/更新文章时的请求体。
+/// 文章请求数据传输对象（新建/更新）。
 /// </summary>
-public class ArticlePayload
+public class ArticleDo
 {
     public string Category { get; set; } = string.Empty;
     public string Kicker { get; set; } = string.Empty;

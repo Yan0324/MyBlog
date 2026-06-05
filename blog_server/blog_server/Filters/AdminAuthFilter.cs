@@ -1,4 +1,5 @@
-using blog_server.Services;
+using blog_server.Common;
+using blog_server.Services.IService;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
@@ -7,7 +8,7 @@ namespace blog_server.Filters;
 /// <summary>
 /// 校验后台接口的 Bearer Token。
 /// </summary>
-public class AdminAuthFilter(AdminAuthService authService) : IActionFilter
+public class AdminAuthFilter(IAdminAuthService authService) : IActionFilter
 {
     public void OnActionExecuting(ActionExecutingContext context)
     {
@@ -15,7 +16,7 @@ public class AdminAuthFilter(AdminAuthService authService) : IActionFilter
 
         if (!authService.ValidateToken(authorization))
         {
-            context.Result = new UnauthorizedObjectResult(new { message = "未授权" });
+            context.Result = new UnauthorizedObjectResult(Result.Fail(401, "未授权"));
         }
     }
 
