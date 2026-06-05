@@ -20,4 +20,19 @@ public class ArticlesController(ArticleStore store) : ControllerBase
         var articles = store.GetPublished(category);
         return Ok(new { articles });
     }
+
+    /// <summary>
+    /// 获取单篇已发布文章（详情页）。
+    /// </summary>
+    [HttpGet("{id}")]
+    public ActionResult<object> GetById(string id)
+    {
+        var article = store.GetPublishedById(id);
+        if (article is null)
+        {
+            return NotFound(new { message = "文章不存在" });
+        }
+
+        return Ok(new { article });
+    }
 }

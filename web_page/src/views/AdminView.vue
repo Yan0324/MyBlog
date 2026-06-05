@@ -74,14 +74,25 @@
             </label>
 
             <label class="field">
-              <span>摘要（列表页展示）</span>
-              <textarea v-model.trim="form.copy" rows="3" placeholder="一两句话介绍这篇文章" />
+              <span>摘要（列表页展示，纯文本）</span>
+              <textarea v-model.trim="form.copy" rows="3" placeholder="一两句话介绍这篇文章，不使用 Markdown" />
             </label>
 
-            <label class="field">
-              <span>正文（可选，预留详情页）</span>
-              <textarea v-model.trim="form.content" rows="8" placeholder="完整正文，后续可做详情页" />
-            </label>
+            <div class="field">
+              <span>正文（Markdown）</span>
+              <div class="md-editor">
+                <textarea
+                  v-model="form.content"
+                  class="md-textarea"
+                  rows="12"
+                  placeholder="支持 Markdown：## 标题、列表、**加粗**、代码块等"
+                />
+                <div class="md-preview">
+                  <p class="md-preview-label">预览</p>
+                  <MarkdownContent :source="form.content" empty-text="输入 Markdown 后在此预览" />
+                </div>
+              </div>
+            </div>
 
             <label class="field">
               <span>标签（英文逗号分隔）</span>
@@ -127,11 +138,13 @@ import {
   updateArticle,
   deleteArticle
 } from '../api/client'
+import MarkdownContent from '../components/MarkdownContent.vue'
 
 const TOKEN_KEY = 'blog_admin_token'
 
 export default {
   name: 'AdminView',
+  components: { MarkdownContent },
   data() {
     return {
       token: localStorage.getItem(TOKEN_KEY) || '',
@@ -443,6 +456,46 @@ export default {
   min-height: 4rem;
 }
 
+/* Markdown 编辑：左侧输入、右侧预览 */
+.md-editor {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  min-height: 16rem;
+}
+
+.md-textarea {
+  width: 100%;
+  min-height: 16rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid rgba(26, 26, 26, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.md-preview {
+  padding: 0.75rem 0.9rem;
+  border: 1px solid rgba(26, 26, 26, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.55);
+  overflow: auto;
+  max-height: 24rem;
+}
+
+.md-preview-label {
+  margin-bottom: 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
 .editor-actions {
   display: flex;
   flex-wrap: wrap;
@@ -509,6 +562,10 @@ export default {
 
   .admin-list {
     max-height: none;
+  }
+
+  .md-editor {
+    grid-template-columns: 1fr;
   }
 }
 

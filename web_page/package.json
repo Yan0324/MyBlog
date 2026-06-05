@@ -10,7 +10,9 @@
   "dependencies": {
     "@lottiefiles/dotlottie-vue": "^0.11.4",
     "core-js": "^3.8.3",
+    "dompurify": "^3.4.8",
     "jinrishici": "^1.0.6",
+    "marked": "^18.0.4",
     "vue": "^3.2.13",
     "vue-router": "^4.6.4"
   },

@@ -33,6 +33,11 @@ export function fetchPublishedArticles(category) {
   return request(`/articles${query}`)
 }
 
+// 前台获取单篇文章（详情页）
+export function fetchArticleById(id) {
+  return request(`/articles/${encodeURIComponent(id)}`)
+}
+
 // 后台登录
 export function adminLogin(password) {
   return request('/admin/login', {

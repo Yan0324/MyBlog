@@ -33,9 +33,10 @@
         </p>
 
         <div class="article-grid">
-        <article
+        <router-link
           v-for="article in paginatedArticles"
           :key="article.id"
+          :to="{ name: 'article-detail', params: { id: article.id } }"
           class="article-card"
         >
           <div class="article-meta">
@@ -47,7 +48,7 @@
           <div class="article-tags">
             <span v-for="tag in article.tags" :key="tag" class="article-tag">{{ tag }}</span>
           </div>
-        </article>
+        </router-link>
         </div>
 
         <!-- 当前分类独立分页 -->
@@ -154,7 +155,7 @@ export default {
         const data = await fetchPublishedArticles()
         this.articles = data.articles || []
       } catch (err) {
-        this.loadError = err.message || '加载失败，请确认 blog_api 已启动'
+        this.loadError = err.message || '加载失败，请确认 blog_server 已启动'
         this.articles = []
       } finally {
         this.loading = false
@@ -330,6 +331,9 @@ export default {
 }
 
 .article-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
   min-height: 260px;
   padding: 1.5rem;
   border-radius: 24px;

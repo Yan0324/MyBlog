@@ -22,7 +22,24 @@ public class ArticleStore
                 Kicker = "2026 · 06",
                 Title = "Vue 3 与 ASP.NET Core 前后端分离",
                 Copy = "记录个人博客从静态页迁移到前后端分离架构的过程与踩坑。",
-                Content = "正文占位：后续接入详情页时再展示完整内容。",
+                Content = """
+                    ## 为什么选前后端分离
+
+                    个人博客从静态页迁移到 **Vue + ASP.NET Core** 后，内容可以走 API 管理，前台只负责展示。
+
+                    ### 技术栈
+
+                    - 前端：Vue 3 + Vue Router
+                    - 后端：ASP.NET Core Web API
+                    - 正文：支持 **Markdown** 编写
+
+                    ```js
+                    // 示例：前台拉取文章
+                    const data = await fetch('/api/articles')
+                    ```
+
+                    > 列表页显示摘要，详情页渲染 Markdown 正文。
+                    """,
                 Tags = ["Vue", "ASP.NET", "随笔"],
                 Published = true
             },
@@ -83,6 +100,21 @@ public class ArticleStore
         lock (_lock)
         {
             return _articles.FirstOrDefault(a => a.Id == id);
+        }
+    }
+
+    /// <summary>按 ID 获取已发布文章（前台详情页）。</summary>
+    public Article? GetPublishedById(string id)
+    {
+        lock (_lock)
+        {
+            var article = _articles.FirstOrDefault(a => a.Id == id);
+            if (article is null || !article.Published)
+            {
+                return null;
+            }
+
+            return Clone(article);
         }
     }
 
