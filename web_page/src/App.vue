@@ -16,7 +16,7 @@
         >
           <img :src="logoUrl" alt="Cyan avatar" class="home-avatar-image" />
         </RouterLink>
-        <NavBar :theme="theme" @toggle-theme="toggleTheme" />
+        <NavBar />
       </header>
       <main class="page-frame" :class="{ 'page-frame--home': isHomeRoute }">
         <router-view v-slot="{ Component, route }">
@@ -45,7 +45,6 @@ export default {
   components: { NavBar, ParticleCanvas, LottieAnimation, LoadingAnimation },
   data() {
     return {
-      theme: localStorage.getItem('theme') || 'light',
       isLoading: true,
       loadingTimer: null,
       logoUrl
@@ -56,13 +55,7 @@ export default {
       return this.$route.name === 'home'
     }
   },
-  watch: {
-    theme(val) {
-      document.body.setAttribute('data-theme', val)
-    }
-  },
   mounted() {
-    document.body.setAttribute('data-theme', this.theme)
     this.setCircularFavicon(logoUrl)
 
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -78,10 +71,6 @@ export default {
     }
   },
   methods: {
-    toggleTheme() {
-      this.theme = this.theme === 'dark' ? 'light' : 'dark'
-      localStorage.setItem('theme', this.theme)
-    },
     setCircularFavicon(src) {
       const size = 64
       const canvas = document.createElement('canvas')

@@ -1,8 +1,8 @@
 using blog_server.Common;
 using blog_server.Entity.Do;
 using blog_server.Entity.Vo;
-using blog_server.Filters;
 using blog_server.Services.IService;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace blog_server.Controllers;
@@ -18,7 +18,7 @@ public class AdminController(
     IAdminAuthService authService) : ControllerBase
 {
     /// <summary>
-    /// 后台登录，成功返回 Bearer Token。
+    /// 后台登录，成功返回 JWT Bearer Token。
     /// </summary>
     [HttpPost("login")]
     public ActionResult<Result<LoginVo>> Login([FromBody] LoginDo loginDo)
@@ -33,14 +33,14 @@ public class AdminController(
             return Unauthorized(Result<LoginVo>.Fail(401, "密码错误"));
         }
 
-        return Ok(Result<LoginVo>.Ok(new LoginVo { Token = authService.GetToken() }));
+        return Ok(Result<LoginVo>.Ok(new LoginVo { Token = authService.GenerateToken() }));
     }
 
     /// <summary>
     /// 获取首页状态配置。
     /// </summary>
     [HttpGet("status")]
-    [AdminAuthorize]
+    [Authorize]
     public ActionResult<Result<SiteStatusItemVo>> GetStatus()
     {
         var status = statusStore.Get();
@@ -51,7 +51,7 @@ public class AdminController(
     /// 更新首页状态配置。
     /// </summary>
     [HttpPut("status")]
-    [AdminAuthorize]
+    [Authorize]
     public ActionResult<Result<SiteStatusItemVo>> UpdateStatus([FromBody] SiteStatusDo statusDo)
     {
         if (string.IsNullOrWhiteSpace(statusDo.Keyword))
@@ -67,7 +67,7 @@ public class AdminController(
     /// 获取全部文章（含草稿）。
     /// </summary>
     [HttpGet("articles")]
-    [AdminAuthorize]
+    [Authorize]
     public ActionResult<Result<ArticleListVo>> GetAll()
     {
         var articles = store.GetAll();
@@ -78,7 +78,7 @@ public class AdminController(
     /// 新建文章。
     /// </summary>
     [HttpPost("articles")]
-    [AdminAuthorize]
+    [Authorize]
     public ActionResult<Result<ArticleItemVo>> Create([FromBody] ArticleDo articleDo)
     {
         if (string.IsNullOrWhiteSpace(articleDo.Title))
@@ -94,7 +94,7 @@ public class AdminController(
     /// 更新文章。
     /// </summary>
     [HttpPut("articles/{id}")]
-    [AdminAuthorize]
+    [Authorize]
     public ActionResult<Result<ArticleItemVo>> Update(string id, [FromBody] ArticleDo articleDo)
     {
         if (string.IsNullOrWhiteSpace(articleDo.Title))
@@ -115,7 +115,7 @@ public class AdminController(
     /// 删除文章。
     /// </summary>
     [HttpDelete("articles/{id}")]
-    [AdminAuthorize]
+    [Authorize]
     public ActionResult<Result> Delete(string id)
     {
         if (!store.Delete(id))

@@ -1,9 +1,13 @@
+using System.Text;
+using blog_server.Common;
 using blog_server.Data;
 using blog_server.Mappers;
 using blog_server.Mappers.IMapper;
 using blog_server.Services;
 using blog_server.Services.IService;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,7 +32,35 @@ builder.Services.AddScoped<ISiteStatusMapper, SiteStatusMapper>();
 builder.Services.AddScoped<IArticleStore, ArticleStore>();
 builder.Services.AddScoped<ISiteStatusStore, SiteStatusStore>();
 builder.Services.AddSingleton<IAdminAuthService, AdminAuthService>();
-builder.Services.AddScoped<blog_server.Filters.AdminAuthFilter>();
+
+// JWT 认证
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"]!))
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = context =>
+            {
+                context.HandleResponse();
+                context.Response.StatusCode = 401;
+                context.Response.ContentType = "application/json";
+                var result = Result.Fail(401, "未授权");
+                return context.Response.WriteAsJsonAsync(result);
+            }
+        };
+    });
 
 // 开发时允许 Vue devServer 跨域访问
 builder.Services.AddCors(options =>
@@ -48,17 +80,23 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+// 生产环境在 nginx 后面，需要信任反向代理的转发头
+if (!app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
-    app.UseCors("DevCors");
-    // 开发环境走 HTTP 代理，避免 HTTPS 重定向导致联调失败
+    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor
+                         | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
+    });
+    app.UseHttpsRedirection();
 }
 else
 {
-    app.UseHttpsRedirection();
+    app.MapOpenApi();
+    app.UseCors("DevCors");
 }
 
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 

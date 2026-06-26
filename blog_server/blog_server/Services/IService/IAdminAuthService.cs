@@ -1,16 +1,13 @@
 namespace blog_server.Services.IService;
 
 /// <summary>
-/// 后台鉴权接口。
+/// 后台鉴权接口（JWT + BCrypt）。
 /// </summary>
 public interface IAdminAuthService
 {
-    /// <summary>校验登录密码。</summary>
+    /// <summary>校验登录密码（BCrypt 哈希比对）。</summary>
     bool ValidatePassword(string password);
 
-    /// <summary>返回 Bearer Token。</summary>
-    string GetToken();
-
-    /// <summary>校验 Authorization 头中的 Bearer Token。</summary>
-    bool ValidateToken(string? authorizationHeader);
+    /// <summary>签发 JWT Bearer Token。</summary>
+    string GenerateToken();
 }

@@ -12,11 +12,6 @@
             {{ item.label }}
           </RouterLink>
         </li>
-        <li class="nav-item" :ref="el => { if (el) navRefs[navItems.length] = el }">
-          <button class="theme-btn" @click="$emit('toggle-theme')">
-            <i :class="['fas', theme === 'dark' ? 'fa-sun' : 'fa-moon']"></i>
-          </button>
-        </li>
       </ul>
     </div>
   </nav>
@@ -25,10 +20,6 @@
 <script>
 export default {
   name: 'NavBar',
-  props: {
-    theme: String
-  },
-  emits: ['toggle-theme'],
   data() {
     return {
       navItems: [
@@ -132,20 +123,6 @@ export default {
   transform: translateX(-50%) scaleX(1);
 }
 
-/* Theme Toggle */
-.theme-btn {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 1rem;
-  transition: color 0.3s ease, transform 0.3s ease;
-}
-
-.theme-btn:hover {
-  color: var(--text-primary);
-  transform: translateY(-2px);
-}
 
 @media (max-width: 768px) {
   .navbar {

@@ -1,7 +1,11 @@
 <template>
   <section class="subpage article-detail">
     <div class="subpage-shell">
-      <router-link to="/essay" class="back-link">← 返回 Essay</router-link>
+      <router-link to="/essay" class="back-link" aria-label="返回文章列表">
+        <svg class="back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+      </router-link>
 
       <p v-if="loading" class="detail-status">正在加载文章…</p>
       <p v-else-if="loadError" class="detail-status detail-status--error">
@@ -113,18 +117,31 @@ export default {
 }
 
 .back-link {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.6rem;
+  height: 2.6rem;
   margin-bottom: 1.25rem;
-  font-family: var(--font-mono);
-  font-size: 0.82rem;
-  letter-spacing: 0.04em;
+  border-radius: 999px;
+  border: 1px solid rgba(26, 26, 26, 0.12);
+  background: rgba(255, 255, 255, 0.65);
   color: var(--text-secondary);
   text-decoration: none;
-  transition: color 0.25s ease;
+  backdrop-filter: blur(8px);
+  transition: color 0.25s ease, border-color 0.25s ease, background 0.25s ease, transform 0.25s ease;
+}
+
+.back-icon {
+  width: 1.25rem;
+  height: 1.25rem;
 }
 
 .back-link:hover {
   color: var(--text-primary);
+  border-color: rgba(184, 212, 227, 0.85);
+  background: rgba(255, 255, 255, 0.88);
+  transform: translateX(-3px);
 }
 
 .detail-status {
