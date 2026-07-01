@@ -1,54 +1,72 @@
-using blog_server.Data;
+using System.Data;
 using blog_server.Entity;
 using blog_server.Mappers.IMapper;
-using Microsoft.EntityFrameworkCore;
+using Dapper;
 
 namespace blog_server.Mappers;
 
 /// <summary>
-/// 文章表 Mapper 实现，封装 EF Core 数据库操作。
+/// 文章表 Mapper 实现，使用 Dapper 执行 SQL。
+/// 注入 IDbConnection（Scoped，每次 HTTP 请求一个连接）。
 /// </summary>
-public class ArticleMapper(BlogDbContext db) : IArticleMapper
+public class ArticleMapper(IDbConnection db) : IArticleMapper
 {
     public IReadOnlyList<Article> SelectPublished(string? category)
     {
-        var query = db.Articles.AsNoTracking().Where(a => a.Published);
-
-        if (!string.IsNullOrWhiteSpace(category))
+        if (string.IsNullOrWhiteSpace(category))
         {
-            query = query.Where(a => a.Category.ToLower() == category.ToLower());
+            return db.Query<Article>(
+                    "SELECT * FROM articles WHERE Published = 1 ORDER BY Id DESC")
+                .ToList();
         }
 
-        return query.ToList();
+        return db.Query<Article>(
+                "SELECT * FROM articles WHERE Published = 1 AND LOWER(Category) = LOWER(@category) ORDER BY Id DESC",
+                new { category })
+            .ToList();
     }
 
     public IReadOnlyList<Article> SelectAll()
     {
-        return db.Articles.AsNoTracking().ToList();
+        return db.Query<Article>(
+                "SELECT * FROM articles ORDER BY Id DESC")
+            .ToList();
     }
 
     public Article? SelectById(string id)
     {
-        return db.Articles.AsNoTracking().FirstOrDefault(a => a.Id == id);
-    }
-
-    public Article? SelectTrackedById(string id)
-    {
-        return db.Articles.FirstOrDefault(a => a.Id == id);
+        return db.QueryFirstOrDefault<Article>(
+            "SELECT * FROM articles WHERE Id = @id",
+            new { id });
     }
 
     public void Insert(Article article)
     {
-        db.Articles.Add(article);
+        db.Execute(@"
+            INSERT INTO articles (Id, Category, Kicker, Title, Copy, Content, Tags, Published)
+            VALUES (@Id, @Category, @Kicker, @Title, @Copy, @Content, @Tags, @Published)",
+            article);
     }
 
-    public void Remove(Article article)
+    public void Update(Article article)
     {
-        db.Articles.Remove(article);
+        db.Execute(@"
+            UPDATE articles
+            SET Category = @Category,
+                Kicker = @Kicker,
+                Title = @Title,
+                Copy = @Copy,
+                Content = @Content,
+                Tags = @Tags,
+                Published = @Published
+            WHERE Id = @Id",
+            article);
     }
 
-    public void SaveChanges()
+    public void Delete(string id)
     {
-        db.SaveChanges();
+        db.Execute(
+            "DELETE FROM articles WHERE Id = @id",
+            new { id });
     }
 }

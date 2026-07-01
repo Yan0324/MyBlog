@@ -1,3 +1,4 @@
+using System.Data;
 using System.Text;
 using blog_server.Common;
 using blog_server.Data;
@@ -5,24 +6,28 @@ using blog_server.Mappers;
 using blog_server.Mappers.IMapper;
 using blog_server.Services;
 using blog_server.Services.IService;
+using Dapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using MySqlConnector;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
-// MySQL 数据库连接
+// 注册 Dapper 自定义类型处理器：List<string> ↔ MySQL JSON 列
+SqlMapper.AddTypeHandler(new JsonTypeHandler<List<string>>());
+
+// MySQL 数据库连接字符串
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(connectionString))
 {
     throw new InvalidOperationException("未配置 ConnectionStrings:DefaultConnection");
 }
 
-builder.Services.AddDbContext<BlogDbContext>(options =>
-    options.UseMySql(connectionString, ServerVersion.Parse("8.0.0-mysql")));
+// Dapper + MySqlConnector：注册 IDbConnection 为 Scoped（每次 HTTP 请求一个连接）
+builder.Services.AddScoped<IDbConnection>(_ => new MySqlConnection(connectionString));
 
 // 注册 Mapper（数据库访问层）
 builder.Services.AddScoped<IArticleMapper, ArticleMapper>();
@@ -79,6 +84,13 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// 数据库初始化：确保表存在（CREATE TABLE IF NOT EXISTS，幂等操作）
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<IDbConnection>();
+    DbInitializer.Initialize((MySqlConnection)db);
+}
 
 // 生产环境在 nginx 后面，需要信任反向代理的转发头
 if (!app.Environment.IsDevelopment())

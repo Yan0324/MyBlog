@@ -1,154 +1,295 @@
 <template>
-  <section class="subpage admin-view">
-    <div class="subpage-shell">
-      <!-- 未登录：显示登录表单 -->
-      <div v-if="!token" class="admin-login">
-        <h1 class="admin-title">文章后台</h1>
-        <p class="admin-lead">登录后可管理首页状态，以及发布、编辑或删除 Essay 文章。</p>
-        <form class="login-form" @submit.prevent="handleLogin">
-          <label class="field">
-            <span>管理密码</span>
-            <input v-model.trim="password" type="password" placeholder="请输入后台密码" required />
-          </label>
-          <p v-if="loginError" class="form-error">{{ loginError }}</p>
-          <button type="submit" class="primary-btn" :disabled="loggingIn">
-            {{ loggingIn ? '登录中…' : '登录' }}
-          </button>
-        </form>
-      </div>
-
-      <!-- 已登录：文章管理 -->
-      <div v-else class="admin-panel">
-        <header class="admin-toolbar">
-          <div>
-            <h1 class="admin-title">文章后台</h1>
-            <p class="admin-lead">内容会保存到服务器，前台首页与 Essay 页自动读取。</p>
-          </div>
-          <div class="toolbar-actions">
-            <button type="button" class="ghost-btn" @click="startCreate">新建文章</button>
-            <button type="button" class="ghost-btn" @click="handleLogout">退出登录</button>
-          </div>
-        </header>
-
-        <p v-if="listError" class="form-error">{{ listError }}</p>
-        <p v-else-if="loadingList" class="admin-hint">加载中…</p>
-
-        <!-- 首页状态管理 -->
-        <section v-if="!loadingList" class="status-panel">
-          <h2 class="section-heading">首页状态</h2>
-          <p class="section-lead">管理首页头像下方的年度关键词与状态行，保存后前台立即生效。</p>
-          <form class="status-form" @submit.prevent="handleSaveStatus">
-            <label class="field">
-              <span>年度关键词</span>
-              <input v-model.trim="statusForm.keyword" type="text" placeholder="例如 Be Rich" required />
-            </label>
-            <label class="field">
-              <span>状态行</span>
-              <input v-model.trim="statusForm.statusLine" type="text" placeholder="例如 2026 · 平静" />
-            </label>
-            <p v-if="statusError" class="form-error">{{ statusError }}</p>
-            <p v-else-if="statusSavedHint" class="status-saved-hint">{{ statusSavedHint }}</p>
-            <button type="submit" class="primary-btn" :disabled="savingStatus">
-              {{ savingStatus ? '保存中…' : '保存状态' }}
-            </button>
-          </form>
-        </section>
-
-        <div v-if="!loadingList" class="admin-layout">
-          <!-- 文章列表 -->
-          <aside class="admin-list">
-            <button
-              v-for="item in articles"
-              :key="item.id"
-              type="button"
-              class="list-item"
-              :class="{ 'is-active': editingId === item.id }"
-              @click="startEdit(item)"
+  <!-- ==================== 登录态 ==================== -->
+  <div v-show="!token" class="admin-login-overlay">
+    <div class="login-card-wrapper">
+      <el-card shadow="always">
+        <template #header>
+          <div class="login-header">文章后台</div>
+        </template>
+        <el-form label-position="top" size="large" @submit.prevent="handleLogin">
+          <el-form-item>
+            <el-input
+              v-model.trim="username"
+              placeholder="用户名"
+              @keyup.enter="handleLogin"
+            />
+          </el-form-item>
+          <el-form-item>
+            <el-input
+              v-model.trim="password"
+              type="password"
+              placeholder="密码"
+              show-password
+              @keyup.enter="handleLogin"
+            />
+          </el-form-item>
+          <el-alert
+            v-if="loginError"
+            :title="loginError"
+            type="error"
+            show-icon
+            :closable="false"
+            style="margin-bottom: 1rem"
+          />
+          <el-form-item>
+            <el-button
+              type="primary"
+              :loading="loggingIn"
+              style="width: 100%"
+              @click="handleLogin"
             >
-              <span class="list-title">{{ item.title }}</span>
-              <span class="list-meta">{{ categoryLabel(item.category) }} · {{ item.published ? '已发布' : '草稿' }}</span>
-            </button>
-            <p v-if="articles.length === 0" class="admin-hint">还没有文章，点击「新建文章」开始写。</p>
-          </aside>
+              {{ loggingIn ? '登录中…' : '登录' }}
+            </el-button>
+          </el-form-item>
+        </el-form>
+      </el-card>
+    </div>
+  </div>
 
-          <!-- 编辑表单 -->
-          <form v-if="showEditor" class="editor-form" @submit.prevent="handleSave">
-            <h2 class="editor-heading">{{ editingId ? '编辑文章' : '新建文章' }}</h2>
+  <!-- ==================== 后台态 ==================== -->
+  <div v-show="token" class="admin-dashboard">
+    <el-container style="height: 100vh">
+      <!-- ── 侧边栏 ── -->
+      <el-aside :width="isCollapse ? '64px' : '220px'" class="admin-aside">
+        <div class="aside-brand">
+          <span v-show="!isCollapse" class="brand-text">文章后台</span>
+          <el-button class="collapse-btn" text @click="isCollapse = !isCollapse">
+            <el-icon :size="18">
+              <Fold v-if="!isCollapse" />
+              <Expand v-else />
+            </el-icon>
+          </el-button>
+        </div>
+        <el-menu
+          :default-active="activeMenu"
+          :collapse="isCollapse"
+          :collapse-transition="false"
+          background-color="#304156"
+          text-color="#bfcbd9"
+          active-text-color="#409EFF"
+          @select="handleMenuSelect"
+        >
+          <el-menu-item index="status">
+            <el-icon><Monitor /></el-icon>
+            <template #title>首页状态</template>
+          </el-menu-item>
+          <el-menu-item index="articles">
+            <el-icon><Document /></el-icon>
+            <template #title>文章管理</template>
+          </el-menu-item>
+        </el-menu>
+      </el-aside>
 
-            <label class="field">
-              <span>分类</span>
-              <select v-model="form.category" required>
-                <option v-for="cat in publishCategories" :key="cat.id" :value="cat.id">
-                  {{ cat.label }}
-                </option>
-              </select>
-            </label>
+      <!-- ── 右侧：Header + Main ── -->
+      <el-container>
+        <el-header class="admin-header">
+          <div class="header-left">
+            <el-breadcrumb separator="/">
+              <el-breadcrumb-item>后台管理</el-breadcrumb-item>
+              <el-breadcrumb-item>
+                {{ activeMenu === 'status' ? '首页状态' : '文章管理' }}
+              </el-breadcrumb-item>
+            </el-breadcrumb>
+          </div>
+          <div class="header-right">
+            <el-button size="small" @click="handleLogout">退出登录</el-button>
+          </div>
+        </el-header>
 
-            <label class="field">
-              <span>角标 / 日期（kicker）</span>
-              <input v-model.trim="form.kicker" type="text" placeholder="例如 2026 · 06" />
-            </label>
+        <el-main class="admin-main">
+          <!-- 错误 / 加载 -->
+          <el-alert
+            v-if="listError"
+            :title="listError"
+            type="error"
+            show-icon
+            :closable="false"
+            style="margin-bottom: 1rem"
+          />
+          <div v-if="loadingList" class="loading-center">
+            <el-icon class="is-loading" :size="28"><Loading /></el-icon>
+            <p>加载中…</p>
+          </div>
 
-            <label class="field">
-              <span>标题</span>
-              <input v-model.trim="form.title" type="text" placeholder="文章标题" required />
-            </label>
-
-            <label class="field">
-              <span>摘要（列表页展示，纯文本）</span>
-              <textarea v-model.trim="form.copy" rows="3" placeholder="一两句话介绍这篇文章，不使用 Markdown" />
-            </label>
-
-            <div class="field">
-              <span>正文（Markdown）</span>
-              <div class="md-editor">
-                <textarea
-                  v-model="form.content"
-                  class="md-textarea"
-                  rows="12"
-                  placeholder="支持 Markdown：## 标题、列表、**加粗**、代码块等"
+          <!-- ═══════ 首页状态 ═══════ -->
+          <div v-if="activeMenu === 'status' && !loadingList" class="view-panel">
+            <el-card>
+              <template #header>
+                <span class="card-heading">首页状态</span>
+              </template>
+              <p class="card-desc">管理首页头像下方的年度关键词与状态行，保存后前台立即生效。</p>
+              <el-form
+                label-position="top"
+                style="margin-top: 1.25rem; max-width: 480px"
+                @submit.prevent="handleSaveStatus"
+              >
+                <el-form-item label="年度关键词">
+                  <el-input v-model.trim="statusForm.keyword" placeholder="例如 Be Rich" />
+                </el-form-item>
+                <el-form-item label="状态行">
+                  <el-input v-model.trim="statusForm.statusLine" placeholder="例如 2026 · 平静" />
+                </el-form-item>
+                <el-alert
+                  v-if="statusError"
+                  :title="statusError"
+                  type="error"
+                  show-icon
+                  :closable="false"
+                  style="margin-bottom: 1rem"
                 />
-                <div class="md-preview">
-                  <p class="md-preview-label">预览</p>
-                  <MarkdownContent :source="form.content" empty-text="输入 Markdown 后在此预览" />
+                <el-alert
+                  v-if="statusSavedHint"
+                  :title="statusSavedHint"
+                  type="success"
+                  show-icon
+                  :closable="false"
+                  style="margin-bottom: 1rem"
+                />
+                <el-form-item>
+                  <el-button type="primary" :loading="savingStatus" @click="handleSaveStatus">
+                    {{ savingStatus ? '保存中…' : '保存状态' }}
+                  </el-button>
+                </el-form-item>
+              </el-form>
+            </el-card>
+          </div>
+
+          <!-- ═══════ 文章管理 ═══════ -->
+          <div v-if="activeMenu === 'articles' && !loadingList" class="articles-layout">
+            <!-- 文章列表 -->
+            <div class="article-list-panel">
+              <div class="list-toolbar">
+                <span class="card-heading">文章列表</span>
+                <el-button type="primary" size="small" @click="startCreate">
+                  <el-icon><Plus /></el-icon> 新建
+                </el-button>
+              </div>
+              <div class="article-list-scroll">
+                <div
+                  v-for="item in articles"
+                  :key="item.id"
+                  class="article-list-item"
+                  :class="{ 'is-active': editingId === item.id }"
+                  @click="startEdit(item)"
+                >
+                  <div class="item-title">{{ item.title }}</div>
+                  <div class="item-meta">
+                    <el-tag size="small" type="info">{{ categoryLabel(item.category) }}</el-tag>
+                    <el-tag
+                      size="small"
+                      :type="item.published ? 'success' : 'warning'"
+                      style="margin-left: 0.35rem"
+                    >
+                      {{ item.published ? '已发布' : '草稿' }}
+                    </el-tag>
+                  </div>
                 </div>
+                <el-empty v-if="articles.length === 0" description="还没有文章" :image-size="80" />
               </div>
             </div>
 
-            <label class="field">
-              <span>标签（英文逗号分隔）</span>
-              <input v-model.trim="tagsInput" type="text" placeholder="Vue, 随笔, 日常" />
-            </label>
+            <!-- 编辑器 -->
+            <div class="editor-panel">
+              <el-card v-if="showEditor">
+                <template #header>
+                  <span class="card-heading">{{ editingId ? '编辑文章' : '新建文章' }}</span>
+                </template>
+                <el-form label-position="top" @submit.prevent="handleSave">
+                  <el-row :gutter="16">
+                    <el-col :span="12">
+                      <el-form-item label="分类">
+                        <el-select v-model="form.category" style="width: 100%">
+                          <el-option
+                            v-for="cat in publishCategories"
+                            :key="cat.id"
+                            :label="cat.label"
+                            :value="cat.id"
+                          />
+                        </el-select>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                      <el-form-item label="角标 / 日期">
+                        <el-input v-model.trim="form.kicker" placeholder="例如 2026 · 06" />
+                      </el-form-item>
+                    </el-col>
+                  </el-row>
 
-            <label class="field field--inline">
-              <input v-model="form.published" type="checkbox" />
-              <span>立即发布（取消勾选则保存为草稿，前台不显示）</span>
-            </label>
+                  <el-form-item label="标题">
+                    <el-input v-model.trim="form.title" placeholder="文章标题" />
+                  </el-form-item>
 
-            <p v-if="saveError" class="form-error">{{ saveError }}</p>
+                  <el-form-item label="摘要（列表页展示，纯文本）">
+                    <el-input
+                      v-model.trim="form.copy"
+                      type="textarea"
+                      :rows="2"
+                      placeholder="一两句话介绍这篇文章，不使用 Markdown"
+                    />
+                  </el-form-item>
 
-            <div class="editor-actions">
-              <button type="submit" class="primary-btn" :disabled="saving">
-                {{ saving ? '保存中…' : '保存' }}
-              </button>
-              <button
-                v-if="editingId"
-                type="button"
-                class="danger-btn"
-                :disabled="saving"
-                @click="handleDelete"
-              >
-                删除
-              </button>
-              <button type="button" class="ghost-btn" @click="cancelEditor">取消</button>
+                  <el-form-item label="正文（Markdown）">
+                    <div class="md-editor">
+                      <el-input
+                        v-model="form.content"
+                        type="textarea"
+                        :rows="14"
+                        placeholder="支持 Markdown：## 标题、列表、**加粗**、代码块等"
+                        class="md-textarea"
+                      />
+                      <div class="md-preview">
+                        <div class="md-preview-label">预览</div>
+                        <MarkdownContent :source="form.content" empty-text="输入 Markdown 后在此预览" />
+                      </div>
+                    </div>
+                  </el-form-item>
+
+                  <el-form-item label="标签（英文逗号分隔）">
+                    <el-input v-model.trim="tagsInput" placeholder="Vue, 随笔, 日常" />
+                  </el-form-item>
+
+                  <el-form-item>
+                    <el-checkbox v-model="form.published" label="立即发布（取消勾选则保存为草稿，前台不显示）" />
+                  </el-form-item>
+
+                  <el-alert
+                    v-if="saveError"
+                    :title="saveError"
+                    type="error"
+                    show-icon
+                    :closable="false"
+                    style="margin-bottom: 1rem"
+                  />
+
+                  <el-form-item>
+                    <el-button type="primary" :loading="saving" @click="handleSave">
+                      {{ saving ? '保存中…' : '保存' }}
+                    </el-button>
+                    <el-button
+                      v-if="editingId"
+                      type="danger"
+                      :disabled="saving"
+                      @click="handleDelete"
+                    >
+                      删除
+                    </el-button>
+                    <el-button @click="cancelEditor">取消</el-button>
+                  </el-form-item>
+                </el-form>
+              </el-card>
+
+              <el-empty
+                v-else
+                description="从左侧选择一篇文章，或点击「新建」"
+                :image-size="100"
+                style="margin-top: 3rem"
+              />
             </div>
-          </form>
-
-          <p v-else class="admin-hint editor-placeholder">从左侧选择一篇文章，或点击「新建文章」。</p>
-        </div>
-      </div>
-    </div>
-  </section>
+          </div>
+        </el-main>
+      </el-container>
+    </el-container>
+  </div>
 </template>
 
 <script>
@@ -162,25 +303,47 @@ import {
   deleteArticle
 } from '../api/client'
 import MarkdownContent from '../components/MarkdownContent.vue'
+import { Monitor, Document, Fold, Expand, Loading, Plus } from '@element-plus/icons-vue'
 
 const TOKEN_KEY = 'blog_admin_token'
 
 export default {
   name: 'AdminView',
-  components: { MarkdownContent },
+  components: {
+    MarkdownContent,
+    Monitor,
+    Document,
+    Fold,
+    Expand,
+    Loading,
+    Plus
+  },
   data() {
     return {
+      // Auth
       token: localStorage.getItem(TOKEN_KEY) || '',
+      username: '',
       password: '',
       loggingIn: false,
       loginError: '',
+
+      // Layout
+      isCollapse: false,
+      activeMenu: 'status',
+
+      // Data loading
       loadingList: false,
       listError: '',
+
+      // Articles
       articles: [],
       showEditor: false,
       editingId: null,
       saving: false,
       saveError: '',
+      tagsInput: '',
+
+      // Status
       statusForm: {
         keyword: '',
         statusLine: ''
@@ -188,7 +351,8 @@ export default {
       savingStatus: false,
       statusError: '',
       statusSavedHint: '',
-      tagsInput: '',
+
+      // Constants
       publishCategories: [
         { id: 'tech', label: '技术' },
         { id: 'life', label: '生活' },
@@ -210,6 +374,7 @@ export default {
     }
   },
   methods: {
+    /* ── 工具 ── */
     emptyForm() {
       return {
         category: 'notes',
@@ -220,24 +385,38 @@ export default {
         published: true
       }
     },
-    categoryLabel(categoryId) {
-      const found = this.publishCategories.find((cat) => cat.id === categoryId)
-      return found ? found.label : categoryId
+    categoryLabel(id) {
+      const found = this.publishCategories.find((cat) => cat.id === id)
+      return found ? found.label : id
     },
+    handleMenuSelect(index) {
+      this.activeMenu = index
+    },
+
+    /* ── 登录 ── */
     async handleLogin() {
       this.loggingIn = true
       this.loginError = ''
       try {
-        const data = await adminLogin(this.password)
+        const data = await adminLogin(this.username, this.password)
         this.token = data.token
         localStorage.setItem(TOKEN_KEY, this.token)
+        this.username = ''
         this.password = ''
-        await this.loadArticles()
       } catch (err) {
+        // 登录失败：错误显示在登录表单上
         this.loginError = err.message
-      } finally {
         this.loggingIn = false
+        return
       }
+      this.loggingIn = false
+
+      // 等待 Vue 完成 v-if→v-else DOM 切换（登录表单隐藏 → dashboard 显示），
+      // Element Plus 的 el-container 等组件需要挂载到 DOM 后才能正确计算布局
+      await this.$nextTick()
+
+      // 登录成功后再加载数据；loadArticles 自己处理错误，错误会显示在 dashboard 的 listError 上
+      await this.loadArticles()
     },
     handleLogout() {
       this.token = ''
@@ -245,6 +424,8 @@ export default {
       this.articles = []
       this.cancelEditor()
     },
+
+    /* ── 数据加载 ── */
     async loadArticles() {
       this.loadingList = true
       this.listError = ''
@@ -268,6 +449,8 @@ export default {
         this.loadingList = false
       }
     },
+
+    /* ── 状态管理 ── */
     async handleSaveStatus() {
       this.savingStatus = true
       this.statusError = ''
@@ -289,7 +472,10 @@ export default {
         this.savingStatus = false
       }
     },
+
+    /* ── 文章编辑器 ── */
     startCreate() {
+      this.activeMenu = 'articles'
       this.editingId = null
       this.form = this.emptyForm()
       this.tagsInput = ''
@@ -320,7 +506,6 @@ export default {
         .split(/[,，]/)
         .map((tag) => tag.trim())
         .filter(Boolean)
-
       return {
         category: this.form.category,
         kicker: this.form.kicker,
@@ -351,8 +536,15 @@ export default {
     },
     async handleDelete() {
       if (!this.editingId) return
-      const ok = window.confirm('确定删除这篇文章吗？此操作不可恢复。')
-      if (!ok) return
+      try {
+        await this.$confirm('确定删除这篇文章吗？此操作不可恢复。', '警告', {
+          confirmButtonText: '确定删除',
+          cancelButtonText: '取消',
+          type: 'warning'
+        })
+      } catch {
+        return
+      }
 
       this.saving = true
       this.saveError = ''
@@ -371,303 +563,261 @@ export default {
 </script>
 
 <style scoped>
-.subpage {
-  position: relative;
-  z-index: 10;
-  width: min(1160px, calc(100% - 3rem));
-  margin: 0 auto 4rem;
-  padding-top: clamp(1rem, 2vw, 1.5rem);
-}
-
-.subpage-shell {
-  padding: clamp(2rem, 4vw, 3.2rem);
-  border: 1px solid var(--border-color);
-  border-radius: 34px;
-  background:
-    radial-gradient(circle at top left, rgba(184, 212, 227, 0.18), transparent 30%),
-    linear-gradient(180deg, var(--surface-card) 0%, rgba(255, 255, 255, 0.4) 100%);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.06);
-  backdrop-filter: blur(12px);
-}
-
-.admin-title {
-  font-size: clamp(1.8rem, 4vw, 2.6rem);
-  line-height: 1.1;
-}
-
-.admin-lead {
-  margin-top: 0.6rem;
-  color: var(--text-secondary);
-}
-
-.admin-login {
-  max-width: 26rem;
-}
-
-.login-form,
-.editor-form {
-  margin-top: 1.5rem;
+/* ═══════════════════════════════════════════
+   登录态
+   ═══════════════════════════════════════════ */
+.admin-login-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.admin-toolbar {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.toolbar-actions {
-  display: flex;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-}
-
-.admin-layout {
-  display: grid;
-  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
-  gap: 1.25rem;
-  margin-top: 1.5rem;
-}
-
-.status-panel {
-  margin-top: 1.5rem;
-  padding: 1.25rem;
-  border-radius: 20px;
-  border: 1px solid rgba(26, 26, 26, 0.08);
-  background: rgba(255, 255, 255, 0.72);
-}
-
-.section-heading {
-  font-size: 1.2rem;
-}
-
-.section-lead {
-  margin-top: 0.35rem;
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-}
-
-.status-form {
-  margin-top: 1rem;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
-  align-items: end;
-}
-
-.status-saved-hint {
-  color: #2d6a4f;
-  font-size: 0.88rem;
-  grid-column: 1 / -1;
-}
-
-.admin-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  max-height: 70vh;
-  overflow: auto;
-  padding-right: 0.25rem;
-}
-
-.list-item {
-  text-align: left;
-  padding: 0.85rem 1rem;
-  border: 1px solid rgba(26, 26, 26, 0.1);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.6);
-  cursor: pointer;
-  transition: border-color 0.25s ease, transform 0.25s ease;
-}
-
-.list-item:hover,
-.list-item.is-active {
-  border-color: rgba(184, 212, 227, 0.95);
-  transform: translateY(-2px);
-}
-
-.list-title {
-  display: block;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.list-meta {
-  display: block;
-  margin-top: 0.35rem;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  color: var(--text-secondary);
-}
-
-.editor-form {
-  padding: 1.25rem;
-  border-radius: 20px;
-  border: 1px solid rgba(26, 26, 26, 0.08);
-  background: rgba(255, 255, 255, 0.72);
-}
-
-.editor-heading {
-  font-size: 1.2rem;
-  margin-bottom: 0.25rem;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-}
-
-.field--inline {
-  flex-direction: row;
   align-items: center;
-  gap: 0.6rem;
+  justify-content: center;
+  background: var(--bg-color);
 }
 
-.field input,
-.field select,
-.field textarea {
-  width: 100%;
-  padding: 0.65rem 0.8rem;
-  border: 1px solid rgba(26, 26, 26, 0.12);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--text-primary);
-  font: inherit;
+.login-card-wrapper {
+  width: min(28rem, calc(100% - 2rem));
 }
 
-.field textarea {
-  resize: vertical;
-  min-height: 4rem;
+.login-header {
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-align: center;
 }
 
-/* Markdown 编辑：左侧输入、右侧预览 */
+
+
+/* ═══════════════════════════════════════════
+   后台态 — 全屏 Dashboard
+   ═══════════════════════════════════════════ */
+.admin-dashboard {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+}
+
+/* ── 侧边栏 ── */
+.admin-aside {
+  background-color: #304156;
+  overflow: hidden;
+  transition: width 0.28s ease;
+}
+
+.aside-brand {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.brand-text {
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.collapse-btn {
+  color: #bfcbd9 !important;
+  flex-shrink: 0;
+}
+
+/* 去除菜单右侧边框 */
+.admin-aside .el-menu {
+  border-right: none;
+}
+
+/* ── Header ── */
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border-bottom: 1px solid #e6e6e6;
+  padding: 0 1.25rem;
+  height: 56px;
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* ── Main ── */
+.admin-main {
+  background: #f0f2f5;
+  padding: 1.25rem;
+  overflow-y: auto;
+}
+
+.loading-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: #909399;
+}
+
+.loading-center p {
+  margin-top: 0.5rem;
+}
+
+/* ── 卡片通用 ── */
+.card-heading {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.card-desc {
+  color: #909399;
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+}
+
+/* ═══════════════════════════════════════════
+   文章管理布局
+   ═══════════════════════════════════════════ */
+.articles-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 1.25rem;
+  align-items: start;
+  height: calc(100vh - 56px - 2.5rem); /* 减去 header + main padding */
+}
+
+/* ── 文章列表面板 ── */
+.article-list-panel {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 4px;
+  overflow: hidden;
+  height: 100%;
+}
+
+.list-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #ebeef5;
+  flex-shrink: 0;
+}
+
+.article-list-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+.article-list-item {
+  padding: 0.75rem 0.85rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  margin-bottom: 2px;
+}
+
+.article-list-item:hover {
+  background: #f5f7fa;
+}
+
+.article-list-item.is-active {
+  background: #ecf5ff;
+}
+
+.item-title {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #303133;
+  margin-bottom: 0.35rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* ── 编辑器面板 ── */
+.editor-panel {
+  overflow-y: auto;
+  height: 100%;
+}
+
+/* Markdown 编辑区 */
 .md-editor {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.75rem;
-  min-height: 16rem;
 }
 
-.md-textarea {
-  width: 100%;
-  min-height: 16rem;
-  padding: 0.65rem 0.8rem;
-  border: 1px solid rgba(26, 26, 26, 0.12);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--text-primary);
+.md-textarea :deep(textarea) {
   font-family: var(--font-mono);
   font-size: 0.85rem;
   line-height: 1.6;
-  resize: vertical;
 }
 
 .md-preview {
-  padding: 0.75rem 0.9rem;
-  border: 1px solid rgba(26, 26, 26, 0.1);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.55);
+  padding: 0.65rem 0.8rem;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  background: #fafafa;
   overflow: auto;
   max-height: 24rem;
 }
 
 .md-preview-label {
-  margin-bottom: 0.6rem;
+  margin-bottom: 0.5rem;
   font-family: var(--font-mono);
   font-size: 0.72rem;
   letter-spacing: 0.08em;
-  color: var(--text-secondary);
+  color: #909399;
   text-transform: uppercase;
 }
 
-.editor-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-}
-
-.primary-btn,
-.ghost-btn,
-.danger-btn {
-  padding: 0.55rem 1.1rem;
-  border-radius: 999px;
-  font-family: var(--font-mono);
-  font-size: 0.82rem;
-  cursor: pointer;
-  transition: transform 0.25s ease, opacity 0.25s ease;
-}
-
-.primary-btn {
-  border: none;
-  background: var(--text-primary);
-  color: var(--bg-color);
-}
-
-.ghost-btn {
-  border: 1px solid rgba(26, 26, 26, 0.14);
-  background: rgba(255, 255, 255, 0.7);
-  color: var(--text-primary);
-}
-
-.danger-btn {
-  border: 1px solid rgba(180, 60, 60, 0.35);
-  background: rgba(255, 240, 240, 0.9);
-  color: #8b2e2e;
-}
-
-.primary-btn:hover:not(:disabled),
-.ghost-btn:hover:not(:disabled),
-.danger-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-}
-
-.primary-btn:disabled,
-.ghost-btn:disabled,
-.danger-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.form-error {
-  color: #8b2e2e;
-  font-size: 0.88rem;
-}
-
-.admin-hint,
-.editor-placeholder {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-}
-
+/* ═══════════════════════════════════════════
+   响应式
+   ═══════════════════════════════════════════ */
 @media (max-width: 900px) {
-  .admin-layout {
+  .articles-layout {
     grid-template-columns: 1fr;
+    height: auto;
   }
 
-  .admin-list {
-    max-height: none;
+  .article-list-panel {
+    max-height: 40vh;
   }
 
   .md-editor {
     grid-template-columns: 1fr;
   }
+
+  .admin-aside {
+    position: absolute;
+    height: 100%;
+    z-index: 10;
+  }
 }
 
-@media (max-width: 768px) {
-  .subpage {
-    width: min(100%, calc(100% - 1.5rem));
-  }
-
-  .subpage-shell {
-    padding: 1.25rem;
-    border-radius: 24px;
+@media (max-width: 640px) {
+  .admin-main {
+    padding: 0.75rem;
   }
 }
 </style>

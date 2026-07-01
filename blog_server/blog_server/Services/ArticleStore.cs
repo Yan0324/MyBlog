@@ -37,34 +37,34 @@ public class ArticleStore(IArticleMapper articleMapper) : IArticleStore
     public ArticleVo Create(ArticleDo articleDo)
     {
         var entity = MapDoToEntity(articleDo, GenerateId());
-        articleMapper.Insert(entity);
-        articleMapper.SaveChanges();
+        articleMapper.Insert(entity); // Dapper: 立即执行 INSERT，无需 SaveChanges
         return ArticleVo.FromEntity(entity);
     }
 
     public ArticleVo? Update(string id, ArticleDo articleDo)
     {
-        var existing = articleMapper.SelectTrackedById(id);
+        // Dapper 没有变更追踪：先查出实体确认存在，再执行显式 UPDATE
+        var existing = articleMapper.SelectById(id);
         if (existing is null)
         {
             return null;
         }
 
         ApplyDo(existing, articleDo);
-        articleMapper.SaveChanges();
+        articleMapper.Update(existing); // 立即执行 UPDATE
         return ArticleVo.FromEntity(existing);
     }
 
     public bool Delete(string id)
     {
-        var existing = articleMapper.SelectTrackedById(id);
+        // Dapper: 先确认存在再删除，避免无效操作
+        var existing = articleMapper.SelectById(id);
         if (existing is null)
         {
             return false;
         }
 
-        articleMapper.Remove(existing);
-        articleMapper.SaveChanges();
+        articleMapper.Delete(id); // 直接执行 DELETE，无需 Remove + SaveChanges
         return true;
     }
 

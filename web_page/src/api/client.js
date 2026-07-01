@@ -48,10 +48,10 @@ export function fetchSiteStatus() {
 }
 
 // 后台登录
-export function adminLogin(password) {
+export function adminLogin(username, password) {
   return request('/admin/login', {
     method: 'POST',
-    body: JSON.stringify({ password })
+    body: JSON.stringify({ username, password })
   })
 }
 

@@ -5,5 +5,6 @@ namespace blog_server.Entity.Do;
 /// </summary>
 public class LoginDo
 {
+    public string Username { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
 }

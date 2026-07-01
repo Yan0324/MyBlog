@@ -5,8 +5,9 @@
 
     <!-- 主要内容 -->
     <div v-else key="app" class="app-shell" :class="{ 'app-shell--home': isHomeRoute }">
-      <ParticleCanvas />
-      <header class="app-topbar">
+      <ParticleCanvas v-if="!isAdminRoute" />
+      <!-- 后台页面不需要公用导航栏；其余页面正常显示顶栏 -->
+      <header v-if="!isAdminRoute" class="app-topbar">
         <RouterLink
           v-if="!isHomeRoute"
           to="/"
@@ -25,10 +26,10 @@
           </transition>
         </router-view>
       </main>
-      <footer v-if="!isHomeRoute" class="footer">
+      <footer v-if="!isHomeRoute && !isAdminRoute" class="footer">
         <p>&copy; 2026 Cyan. All Rights Reserved.</p>
       </footer>
-      <LottieAnimation />
+      <LottieAnimation v-if="!isAdminRoute" />
     </div>
   </transition>
 </template>
@@ -53,6 +54,9 @@ export default {
   computed: {
     isHomeRoute() {
       return this.$route.name === 'home'
+    },
+    isAdminRoute() {
+      return this.$route.name === 'admin'
     }
   },
   mounted() {

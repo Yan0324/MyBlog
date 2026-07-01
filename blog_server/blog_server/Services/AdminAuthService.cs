@@ -11,6 +11,7 @@ namespace blog_server.Services;
 /// </summary>
 public class AdminAuthService : IAdminAuthService
 {
+    private readonly string _adminUsername;
     private readonly string _passwordHash;
     private readonly string _jwtSecretKey;
     private readonly string _jwtIssuer;
@@ -19,6 +20,9 @@ public class AdminAuthService : IAdminAuthService
 
     public AdminAuthService(IConfiguration configuration)
     {
+        // 管理员用户名（默认 "admin"）
+        _adminUsername = configuration["Admin:Username"] ?? "admin";
+
         // 密码：优先使用预计算的 BCrypt 哈希，否则对明文密码做哈希
         var passwordHash = configuration["Admin:PasswordHash"];
         if (!string.IsNullOrEmpty(passwordHash))
@@ -47,9 +51,10 @@ public class AdminAuthService : IAdminAuthService
             : 480; // 默认 8 小时
     }
 
-    /// <summary>校验登录密码（BCrypt 恒定时间比较）。</summary>
-    public bool ValidatePassword(string password) =>
-        BCrypt.Net.BCrypt.Verify(password, _passwordHash);
+    /// <summary>校验用户名（忽略大小写）和密码（BCrypt 恒定时间比较）。</summary>
+    public bool ValidateUser(string username, string password) =>
+        string.Equals(username, _adminUsername, StringComparison.OrdinalIgnoreCase)
+        && BCrypt.Net.BCrypt.Verify(password, _passwordHash);
 
     /// <summary>签发 JWT Bearer Token，包含 Admin 角色声明和过期时间。</summary>
     public string GenerateToken()

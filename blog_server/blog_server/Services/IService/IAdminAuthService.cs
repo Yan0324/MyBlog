@@ -5,8 +5,8 @@ namespace blog_server.Services.IService;
 /// </summary>
 public interface IAdminAuthService
 {
-    /// <summary>校验登录密码（BCrypt 哈希比对）。</summary>
-    bool ValidatePassword(string password);
+    /// <summary>校验用户名和密码。</summary>
+    bool ValidateUser(string username, string password);
 
     /// <summary>签发 JWT Bearer Token。</summary>
     string GenerateToken();

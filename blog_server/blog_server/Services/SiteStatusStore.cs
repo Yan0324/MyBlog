@@ -35,7 +35,8 @@ public class SiteStatusStore(ISiteStatusMapper statusMapper) : ISiteStatusStore
         var keyword = statusDo.Keyword.Trim();
         var statusLine = statusDo.StatusLine.Trim();
 
-        var existing = statusMapper.SelectTrackedById(StatusRowId);
+        // Dapper 没有变更追踪：先查后决定 INSERT 还是 UPDATE，每个操作立即执行
+        var existing = statusMapper.SelectById(StatusRowId);
         if (existing is null)
         {
             existing = new SiteStatus
@@ -44,15 +45,15 @@ public class SiteStatusStore(ISiteStatusMapper statusMapper) : ISiteStatusStore
                 Keyword = keyword,
                 StatusLine = statusLine
             };
-            statusMapper.Insert(existing);
+            statusMapper.Insert(existing); // 立即执行 INSERT
         }
         else
         {
             existing.Keyword = keyword;
             existing.StatusLine = statusLine;
+            statusMapper.Update(existing); // 立即执行 UPDATE
         }
 
-        statusMapper.SaveChanges();
         return SiteStatusVo.FromEntity(existing);
     }
 }

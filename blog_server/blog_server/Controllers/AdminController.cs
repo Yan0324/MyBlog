@@ -23,14 +23,14 @@ public class AdminController(
     [HttpPost("login")]
     public ActionResult<Result<LoginVo>> Login([FromBody] LoginDo loginDo)
     {
-        if (string.IsNullOrWhiteSpace(loginDo.Password))
+        if (string.IsNullOrWhiteSpace(loginDo.Username) || string.IsNullOrWhiteSpace(loginDo.Password))
         {
-            return Unauthorized(Result<LoginVo>.Fail(401, "密码错误"));
+            return Unauthorized(Result<LoginVo>.Fail(401, "用户名或密码错误"));
         }
 
-        if (!authService.ValidatePassword(loginDo.Password))
+        if (!authService.ValidateUser(loginDo.Username, loginDo.Password))
         {
-            return Unauthorized(Result<LoginVo>.Fail(401, "密码错误"));
+            return Unauthorized(Result<LoginVo>.Fail(401, "用户名或密码错误"));
         }
 
         return Ok(Result<LoginVo>.Ok(new LoginVo { Token = authService.GenerateToken() }));
