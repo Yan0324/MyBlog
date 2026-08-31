@@ -27,7 +27,7 @@
     <!-- 引用区 -->
     <div class="quote-section" ref="quoteSection">
       <p class="quote-text" ref="quoteText"></p>
-      <p class="quote-source">{{ quoteSourceText }}</p>
+      <p v-if="quoteSourceText" class="quote-source">{{ quoteSourceText }}</p>
     </div>
 
     <div class="social-section" ref="socialSection">
@@ -69,7 +69,7 @@ const FALLBACK_STATUS = {
   statusLine: '2026 · 平静'
 }
 
-const JINRISHICI_SDK_SRC = 'https://sdk.jinrishici.com/v2/browser/jinrishici.js'
+const DAILY_SAYING_API = 'https://uapis.cn/api/v1/saying'
 const REVEAL_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'
 const REVEAL_DURATION = 760
 const TYPE_INTERVAL = 58
@@ -289,48 +289,27 @@ export default {
       }
     },
 
-    loadJinrishiciSdk() {
-      if (window.jinrishici?.load) {
-        return Promise.resolve(window.jinrishici)
-      }
-
-      if (window.__jinrishiciSdkPromise) {
-        return window.__jinrishiciSdkPromise
-      }
-
-      window.__jinrishiciSdkPromise = new Promise((resolve, reject) => {
-        const existingScript = document.querySelector('script[data-jinrishici-sdk="true"]')
-        if (existingScript) {
-          existingScript.addEventListener('load', () => resolve(window.jinrishici), { once: true })
-          existingScript.addEventListener('error', () => reject(new Error('Failed to load Jinrishici SDK.')), { once: true })
-          return
+    async loadDailyPoem() {
+      try {
+        const response = await fetch(DAILY_SAYING_API, {
+          headers: { Accept: 'application/json' }
+        })
+        if (!response.ok) {
+          throw new Error(`Daily saying request failed (${response.status})`)
         }
 
-        const script = document.createElement('script')
-        script.src = JINRISHICI_SDK_SRC
-        script.charset = 'utf-8'
-        script.async = true
-        script.dataset.jinrishiciSdk = 'true'
-        script.onload = () => resolve(window.jinrishici)
-        script.onerror = () => reject(new Error('Failed to load Jinrishici SDK.'))
-        document.head.appendChild(script)
-      })
+        const result = await response.json()
+        const content = typeof result?.text === 'string' ? result.text.trim() : ''
+        if (!content || this._isUnmounted) return
 
-      return window.__jinrishiciSdkPromise
-    },
-
-    loadDailyPoem() {
-      this.loadJinrishiciSdk()
-        .then((sdk) => {
-          if (this._isUnmounted || !sdk?.load) return
-
-          sdk.load((result) => {
-            this.applyPoemResult(result)
-          })
-        })
-        .catch((error) => {
-          console.warn('Jinrishici SDK load failed:', error)
-        })
+        this.quoteTargetText = this.normalizeQuoteText(content)
+        this.quoteSourceText = ''
+        if (this.hasStartedTyping) {
+          this.startTypewriter()
+        }
+      } catch (error) {
+        console.warn('Daily saying API load failed, using fallback:', error)
+      }
     },
 
     initTiltEffect() {
